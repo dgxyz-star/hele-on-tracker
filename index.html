@@ -14,11 +14,11 @@
         select { background: #2a2a2a; border: 1px solid #444; max-width: 280px; }
         button:hover, select:hover { background: #1d4ed8; }
         button.cache-active { background: #16a34a; }
-        #status { font-size: 0.85rem; color: #aaa; margin-left: auto; }
+        #status { font-size: 0.85rem; color: #4ade80; margin-left: auto; font-weight: bold; }
         #alerts-bar { background: #854d0e; color: #fef08a; padding: 8px 10px; font-size: 0.85rem; display: none; border-bottom: 1px solid #713f12; }
-        #map { flex: 1; width: 100%; background: #242424; }
-        #info-panel { background: #1e1e1e; padding: 12px; border-top: 1px solid #333; font-size: 0.9rem; max-height: 180px; overflow-y: auto; line-height: 1.4; }
-        #info-panel a { color: #60a5fa; text-decoration: underline; }
+        #map { flex: 1; width: 100%; background: #1a1a1a; }
+        #info-panel { background: #1e1e1e; padding: 12px; border-top: 1px solid #333; font-size: 0.9rem; max-height: 190px; overflow-y: auto; line-height: 1.4; }
+        #info-panel a { color: #60a5fa; text-decoration: underline; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -43,7 +43,7 @@
         </select>
         <button onclick="fetchLiveBuses()">Reload Network</button>
         <button onclick="locateUser()">Locate Me</button>
-        <button id="cache-btn" onclick="toggleOfflineMode()">Cache Mode: OFF</button>
+        <button id="cache-btn" onclick="toggleOfflineMode()">Cache Mode: ON</button>
         <span id="status">Status: Ready</span>
     </div>
 
@@ -52,7 +52,7 @@
     <div id="map"></div>
 
     <div id="info-panel">
-        <strong>Transit Info:</strong> Select a route from the dropdown menu to highlight its exact path in green, view connecting transfer hubs, and inspect official stop placement data.
+        <strong>Transit Info:</strong> Select a route above to highlight its path in bright color, view official stop markers, check transfer connection points, and access direct official county PDF schedule links.
     </div>
 
     <!-- Leaflet JavaScript -->
@@ -63,6 +63,7 @@
 
         const map = L.map('map').setView([DEFAULT_LAT, DEFAULT_LON], 10);
 
+        // High contrast dark map tiles so bright route lines pop instantly
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
             maxZoom: 16,
             attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ'
@@ -73,24 +74,22 @@
         let routePolylines = [];
         let userCoords = null;
 
-        // Comprehensive Master Dataset with exact route paths (polylines) and connection metadata
         const heleOnRoutesData = [
-            // Route 1: Hilo to Kailua-Kona (Cross-island corridor)
             {
                 id: 'route-1',
                 routeTitle: 'Route 1: Hilo to Kailua-Kona',
-                color: '#22c55e', // Green line path
+                color: '#22c55e', // Bright Green
                 pdfUrl: 'https://www.hawaiicounty.gov/departments/mass-transit/bus-schedules-maps',
                 path: [
-                    [19.7215, -155.0847], // Mo'oheau Terminal
-                    [19.7150, -155.0900], // Aupuni Center
-                    [19.6880, -155.0810], // Prince Kuhio Plaza
-                    [19.9531, -155.6723], // Waimea Town Core
-                    [19.7388, -156.0456], // Kona Airport
-                    [19.6400, -155.9969]  // Loloku St Park & Ride (Kona)
+                    [19.7215, -155.0847],
+                    [19.7150, -155.0900],
+                    [19.6880, -155.0810],
+                    [19.9531, -155.6723],
+                    [19.7388, -156.0456],
+                    [19.6400, -155.9969]
                 ],
                 stops: [
-                    { name: 'Moʻoheau Bus Terminal (Hilo Hub)', lat: 19.7215, lng: -155.0847, schedule: 'Origin Hub - Connects to Puna & Hamakua lines', isTransfer: true },
+                    { name: 'Moʻoheau Bus Terminal (Hilo Hub)', lat: 19.7215, lng: -155.0847, schedule: 'Origin Hub - Connects to Puna & Hamakua', isTransfer: true },
                     { name: 'Aupuni Center / County Building', lat: 19.7150, lng: -155.0900, schedule: 'Aupuni St @ Pauahi St', isTransfer: false },
                     { name: 'Prince Kuhiō Plaza Shelter', lat: 19.6880, lng: -155.0810, schedule: 'Ohu Ohu St Stop', isTransfer: false },
                     { name: 'Waimea Park and Ride', lat: 19.9531, lng: -155.6723, schedule: 'Mamalahoa Hwy Hub - Connection to Route 80/75', isTransfer: true },
@@ -98,18 +97,16 @@
                     { name: 'Loloku Street Park and Ride (Kona)', lat: 19.6400, lng: -155.9969, schedule: 'Terminal Hub - Connects to Kona Trolley (201/202)', isTransfer: true }
                 ]
             },
-
-            // Route 2: Blue Line (Hilo / Kona via Saddle)
             {
                 id: 'route-2',
                 routeTitle: 'Route 2 (Blue Line): Hilo / Kona via Saddle',
-                color: '#3b82f6', // Blue route pathing
+                color: '#3b82f6', // Bright Blue
                 pdfUrl: 'https://www.hawaiicounty.gov/departments/mass-transit/bus-schedules-maps',
                 path: [
-                    [19.7215, -155.0847], // Mo'oheau
-                    [19.7420, -155.4500], // Daniel K Inouye Hwy midpoint
-                    [19.7388, -156.0456], // Kona Airport
-                    [19.6400, -155.9969]  // Kona Terminal
+                    [19.7215, -155.0847],
+                    [19.7420, -155.4500],
+                    [19.7388, -156.0456],
+                    [19.6400, -155.9969]
                 ],
                 stops: [
                     { name: 'Moʻoheau Bus Terminal (Blue Line Start)', lat: 19.7215, lng: -155.0847, schedule: 'Cross-island via Saddle Road', isTransfer: true },
@@ -118,19 +115,17 @@
                     { name: 'Loloku Street Park and Ride (Kona)', lat: 19.6400, lng: -155.9969, schedule: 'West terminus', isTransfer: true }
                 ]
             },
-
-            // Route 10: Hilo to Ocean View
             {
                 id: 'route-10',
                 routeTitle: 'Route 10: Hilo to Ocean View',
-                color: '#22c55e',
+                color: '#10b981', // Emerald
                 pdfUrl: 'https://www.heleonbus.hawaiicounty.gov/getting-around/bus-schedules-and-maps/east-hawai-i/route-10-hilo-to-ocean-view',
                 path: [
-                    [19.7215, -155.0847], // Mo'oheau
-                    [19.6880, -155.0810], // Prince Kuhio Plaza
-                    [19.4310, -155.2320], // Volcano Store
-                    [19.0640, -155.5840], // Naalehu
-                    [19.1050, -155.7830]  // Ocean View
+                    [19.7215, -155.0847],
+                    [19.6880, -155.0810],
+                    [19.4310, -155.2320],
+                    [19.0640, -155.5840],
+                    [19.1050, -155.7830]
                 ],
                 stops: [
                     { name: 'Moʻoheau Bus Terminal (Route 10 Origin)', lat: 19.7215, lng: -155.0847, schedule: 'Southbound via Volcano & Naalehu', isTransfer: true },
@@ -140,12 +135,10 @@
                     { name: 'Ocean View (Hawaii Blvd)', lat: 19.1050, lng: -155.7830, schedule: 'South terminus turnaround', isTransfer: false }
                 ]
             },
-
-            // Route 11: Red Line (Hilo to Volcano)
             {
                 id: 'route-11',
                 routeTitle: 'Route 11 (Red Line): Hilo to Volcano',
-                color: '#ef4444', // Red Line
+                color: '#ef4444', // Red
                 pdfUrl: 'https://www.hawaiicounty.gov/departments/mass-transit/bus-schedules-maps',
                 path: [
                     [19.7215, -155.0847],
@@ -156,17 +149,15 @@
                     { name: 'Hawaii Volcanoes National Park Visitor Center', lat: 19.4284, lng: -155.2558, schedule: 'Crater Rim Drive Terminal', isTransfer: false }
                 ]
             },
-
-            // Route 40: Hilo to Pahoa
             {
                 id: 'route-40',
                 routeTitle: 'Route 40: Hilo to Pahoa',
-                color: '#22c55e',
+                color: '#84cc16', // Lime Green
                 pdfUrl: 'https://www.hawaiicounty.gov/departments/mass-transit/bus-schedules-maps',
                 path: [
-                    [19.7215, -155.0847], // Mo'oheau
-                    [19.6235, -155.0380], // Keaau
-                    [19.5000, -154.9800]  // Pahoa / Puna Kai
+                    [19.7215, -155.0847],
+                    [19.6235, -155.0380],
+                    [19.5000, -154.9800]
                 ],
                 stops: [
                     { name: 'Moʻoheau Bus Terminal (Route 40 Hub)', lat: 19.7215, lng: -155.0847, schedule: 'Connects Hilo, Keaʻau, and Pāhoa', isTransfer: true },
@@ -174,12 +165,10 @@
                     { name: 'Puna Kai Shopping Center (Pahoa)', lat: 19.5000, lng: -154.9800, schedule: 'Pahoa Village Road Stop - Connection to Route 401/402', isTransfer: true }
                 ]
             },
-
-            // Route 80: Hilo to South Kohala Resorts
             {
                 id: 'route-80',
                 routeTitle: 'Route 80: Hilo to South Kohala Resorts',
-                color: '#eab308', // Gold/Yellow
+                color: '#eab308', // Yellow
                 pdfUrl: 'https://www.hawaiicounty.gov/departments/mass-transit/bus-schedules-maps',
                 path: [
                     [19.7215, -155.0847],
@@ -192,8 +181,6 @@
                     { name: 'Hilton Waikoloa Village Resort', lat: 19.9250, lng: -155.8750, schedule: 'Waikoloa Beach Drive Resort Stop', isTransfer: false }
                 ]
             },
-
-            // Intra-Hilo Routes (101, 102, 103, 104)
             {
                 id: 'route-101',
                 routeTitle: 'Route 101: Intra-Hilo Keaukaha',
@@ -238,8 +225,6 @@
                     { name: 'Route 104: Mohouli Street Stop', lat: 19.7000, lng: -155.0950, schedule: 'West Hilo Residential Link', isTransfer: false }
                 ]
             },
-
-            // Puna Local Feeders (401, 402)
             {
                 id: 'route-401',
                 routeTitle: 'Route 401: Hawaiian Beaches / Puna',
@@ -262,8 +247,6 @@
                     { name: 'Route 402: Hawaiian Paradise Park / Ainaloa', lat: 19.5500, lng: -154.9850, schedule: 'Puna Subdivision Feeder Route', isTransfer: false }
                 ]
             },
-
-            // Kona Local Lines (201, 202)
             {
                 id: 'route-201',
                 routeTitle: 'Route 201: Kona Trolley / Alii Drive',
@@ -306,7 +289,7 @@
         });
 
         const transferHubIcon = L.icon({
-            iconUrl: 'https://cdn-icons-png.flaticon.com/512/2838/2838912.png', // Special icon marker for connection transfer hubs
+            iconUrl: 'https://cdn-icons-png.flaticon.com/512/2838/2838912.png',
             iconSize: [28, 28],
             iconAnchor: [14, 14]
         });
@@ -364,7 +347,7 @@
             if (cachedData) {
                 const routes = JSON.parse(cachedData);
                 renderAllRoutes(routes);
-                document.getElementById('status').innerText = `Status: Loaded (${routes.length} active routes)`;
+                document.getElementById('status').innerText = `Status: Ready (${routes.length} routes loaded)`;
             } else {
                 alert('No schedule data found.');
             }
@@ -372,17 +355,17 @@
 
         function renderAllRoutes(routes) {
             routes.forEach(route => {
-                // Draw colored path polyline
+                // Draw bold, high-visibility colored path polylines
                 if (route.path && route.path.length > 0) {
                     const polyline = L.polyline(route.path, {
                         color: route.color || '#22c55e',
-                        weight: 4,
-                        opacity: 0.8
+                        weight: 5,
+                        opacity: 0.9
                     }).addTo(map);
                     routePolylines.push(polyline);
                 }
 
-                // Render stops
+                // Render stops & transfer hubs
                 route.stops.forEach(stop => {
                     const iconToUse = stop.isTransfer ? transferHubIcon : busIcon;
                     const marker = L.marker([stop.lat, stop.lng], { icon: iconToUse })
@@ -423,12 +406,12 @@
                 }
                 document.getElementById('info-panel').innerHTML = `
                     <strong>Active Route View:</strong> ${route.routeTitle}<br>
-                    <strong>Transfer Hubs:</strong> Highlighted with connection icons.<br>
+                    <strong>Path & Stops:</strong> Highlighted on map in bright color.<br>
                     <strong>Official Timetable Link:</strong> <a href="${route.pdfUrl}" target="_blank">View County PDF Documentation</a>
                 `;
             } else {
                 map.setView([DEFAULT_LAT, DEFAULT_LON], 10);
-                document.getElementById('info-panel').innerHTML = `<strong>Transit Info:</strong> Showing all active routes, path lines, and connecting transfer layover points across the island.`;
+                document.getElementById('info-panel').innerHTML = `<strong>Transit Info:</strong> Showing all active routes, colored path lines, and connecting transfer points across the island.`;
             }
         }
 
