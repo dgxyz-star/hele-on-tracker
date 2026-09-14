@@ -48,63 +48,70 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script>
         // Initialize Map centered roughly over Puna/East Hawaii
-        const map = L.map('map').setView([19.5750, -155.0000], 12);
+        const map = L.map('map').setView([19.5750, -155.0000], 13);
 
-        // Dark tile layer matching mobile theme
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-            subdomains: 'abcd',
-            maxZoom: 19
+        // Free OpenStreetMap tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
 
         let markersLayer = L.layerGroup().addTo(map);
         let userMarker = null;
 
-        // Verified Master Database of Stops with Official Timetable Schedules
+        // Complete Master Database of Official Stops & Timetables
         const networkDatabase = {
             '402': {
                 name: 'Route 402: Hawaiian Paradise Park / Ainaloa (via Makuū)',
                 stops: [
-                    { name: 'Keaʻau Village Hub (Transfer)', lat: 19.6235, lng: -155.0380, times: ['Depart: 06:00 AM', 'Depart: 08:00 AM', 'Depart: 11:00 AM', 'Depart: 02:00 PM', 'Depart: 05:00 PM'] },
-                    { name: 'Paradise Drive @ 1st Avenue', lat: 19.6000, lng: -155.0200, times: ['Arrive/Depart: 06:12 AM', 'Arrive/Depart: 08:12 AM', 'Arrive/Depart: 11:12 AM', 'Arrive/Depart: 02:12 PM', 'Arrive/Depart: 05:12 PM'] },
-                    { name: 'Makuū Drive @ 15th Avenue Corridor', lat: 19.5750, lng: -155.0000, times: ['Arrive/Depart: 06:22 AM', 'Arrive/Depart: 08:22 AM', 'Arrive/Depart: 11:22 AM', 'Arrive/Depart: 02:22 PM', 'Arrive/Depart: 05:22 PM'] },
-                    { name: 'Makuū Drive @ Beach Road Junction', lat: 19.5600, lng: -154.9900, times: ['Arrive/Depart: 06:30 AM', 'Arrive/Depart: 08:30 AM', 'Arrive/Depart: 11:30 AM', 'Arrive/Depart: 02:30 PM', 'Arrive/Depart: 05:30 PM'] },
-                    { name: 'Ainaloa Blvd / Boulevard Junction', lat: 19.5500, lng: -154.9850, times: ['Arrive/Depart: 06:40 AM', 'Arrive/Depart: 08:40 AM', 'Arrive/Depart: 11:40 AM', 'Arrive/Depart: 02:40 PM', 'Arrive/Depart: 05:40 PM'] }
+                    { name: 'Puna Kai Shopping Center (Keaʻau-Pahoa Rd)', lat: 19.5012, lng: -154.9795, times: ['05:30 AM', '07:30 AM', '01:30 PM', '03:30 PM', '05:30 PM', '07:30 PM'] },
+                    { name: 'Makuū Drive @ 31st Avenue', lat: 19.5780, lng: -155.0080, times: ['05:37 AM', '07:37 AM', '01:37 PM', '03:37 PM', '05:37 PM', '07:37 PM'] },
+                    { name: 'Makuū Drive @ 25th Avenue', lat: 19.5765, lng: -155.0040, times: ['05:39 AM', '07:39 AM', '01:39 PM', '03:39 PM', '05:39 PM', '07:39 PM'] },
+                    { name: 'Makuū Drive @ 21st Avenue', lat: 19.5755, lng: -155.0015, times: ['05:41 AM', '07:41 AM', '01:41 PM', '03:41 PM', '05:41 PM', '07:41 PM'] },
+                    { name: 'Makuū Drive @ 16th Avenue (Community Center Shelter)', lat: 19.5740, lng: -154.9975, times: ['05:43 AM', '07:43 AM', '01:43 PM', '03:43 PM', '05:43 PM', '07:43 PM'] },
+                    { name: 'Makuū Drive @ 12th Avenue', lat: 19.5725, lng: -154.9940, times: ['05:45 AM', '07:45 AM', '01:45 PM', '03:45 PM', '05:45 PM', '07:45 PM'] },
+                    { name: 'Makuū Drive @ 8th Avenue', lat: 19.5710, lng: -154.9910, times: ['05:47 AM', '07:47 AM', '01:47 PM', '03:47 PM', '05:47 PM', '07:47 PM'] },
+                    { name: 'Makuū Drive @ 4th Avenue', lat: 19.5695, lng: -154.9875, times: ['05:49 AM', '07:49 AM', '01:49 PM', '03:49 PM', '05:49 PM', '07:49 PM'] },
+                    { name: 'Makuū Drive @ 1st Avenue', lat: 19.5685, lng: -154.9850, times: ['05:50 AM', '07:50 AM', '01:50 PM', '03:50 PM', '05:50 PM', '07:50 PM'] },
+                    { name: 'Paradise Drive @ 1st Avenue', lat: 19.6000, lng: -155.0200, times: ['05:51 AM', '07:51 AM', '01:51 PM', '03:51 PM', '05:51 PM', '07:51 PM'] },
+                    { name: 'Paradise Drive @ 14th Avenue', lat: 19.5960, lng: -155.0110, times: ['05:55 AM', '07:55 AM', '01:55 PM', '03:55 PM', '05:55 PM', '07:55 PM'] },
+                    { name: 'Paradise Drive @ 25th Avenue', lat: 19.5920, lng: -155.0020, times: ['05:59 AM', '07:59 AM', '01:59 PM', '03:59 PM', '05:59 PM', '07:59 PM'] },
+                    { name: 'Old Volcano Road @ Keaʻau Post Office', lat: 19.6235, lng: -155.0380, times: ['06:25 AM', '08:25 AM', '02:25 PM', '04:25 PM', '06:25 PM', '08:25 PM'] }
                 ]
             },
             '401': {
                 name: 'Route 401: Hawaiian Beaches / Puna',
                 stops: [
-                    { name: 'Puna Kai Shopping Center (Pahoa Hub)', lat: 19.5000, lng: -154.9800, times: ['Depart: 06:30 AM', 'Depart: 09:00 AM', 'Depart: 12:30 PM', 'Depart: 03:30 PM', 'Depart: 05:30 PM'] },
-                    { name: 'Hawaiian Beaches (Beach Rd Shelter)', lat: 19.4900, lng: -154.9500, times: ['Arrive/Depart: 06:45 AM', 'Arrive/Depart: 09:15 AM', 'Arrive/Depart: 12:45 PM', 'Arrive/Depart: 03:45 PM', 'Arrive/Depart: 05:45 PM'] },
-                    { name: 'Nanawale Blvd Turnaround', lat: 19.4850, lng: -154.9300, times: ['Arrive/Depart: 06:55 AM', 'Arrive/Depart: 09:25 AM', 'Arrive/Depart: 12:55 PM', 'Arrive/Depart: 03:55 PM', 'Arrive/Depart: 05:55 PM'] }
+                    { name: 'Puna Kai Shopping Center (Pahoa Hub)', lat: 19.5000, lng: -154.9800, times: ['06:30 AM', '09:00 AM', '12:30 PM', '03:30 PM', '05:30 PM'] },
+                    { name: 'Hawaiian Beaches (Beach Rd Shelter)', lat: 19.4900, lng: -154.9500, times: ['06:45 AM', '09:15 AM', '12:45 PM', '03:45 PM', '05:45 PM'] },
+                    { name: 'Nanawale Blvd Turnaround', lat: 19.4850, lng: -154.9300, times: ['06:55 AM', '09:25 AM', '12:55 PM', '03:55 PM', '05:55 PM'] }
                 ]
             },
             '40': {
                 name: 'Route 40: Hilo to Pahoa',
                 stops: [
-                    { name: 'Moʻoheau Bus Terminal', lat: 19.7215, lng: -155.0847, times: ['Depart: 06:15 AM', 'Depart: 09:30 AM', 'Depart: 12:30 PM', 'Depart: 03:45 PM', 'Depart: 06:00 PM'] },
-                    { name: 'Prince Kuhiō Plaza', lat: 19.6880, lng: -155.0810, times: ['Arrive/Depart: 06:27 AM', 'Arrive/Depart: 09:42 AM', 'Arrive/Depart: 12:42 PM', 'Arrive/Depart: 03:57 PM', 'Arrive/Depart: 06:12 PM'] },
-                    { name: 'Keaʻau Village Hub', lat: 19.6235, lng: -155.0380, times: ['Arrive/Depart: 06:40 AM', 'Arrive/Depart: 09:55 AM', 'Arrive/Depart: 12:55 PM', 'Arrive/Depart: 04:10 PM', 'Arrive/Depart: 06:25 PM'] },
-                    { name: 'Puna Kai Shopping Center (Pahoa)', lat: 19.5000, lng: -154.9800, times: ['Arrive: 07:10 AM', 'Arrive: 10:25 AM', 'Arrive: 01:25 PM', 'Arrive: 04:40 PM', 'Arrive: 06:55 PM'] }
+                    { name: 'Moʻoheau Bus Terminal', lat: 19.7215, lng: -155.0847, times: ['06:15 AM', '09:30 AM', '12:30 PM', '03:45 PM', '06:00 PM'] },
+                    { name: 'Prince Kuhiō Plaza', lat: 19.6880, lng: -155.0810, times: ['06:27 AM', '09:42 AM', '12:42 PM', '03:57 PM', '06:12 PM'] },
+                    { name: 'Keaʻau Village Hub', lat: 19.6235, lng: -155.0380, times: ['06:40 AM', '09:55 AM', '12:55 PM', '04:10 PM', '06:25 PM'] },
+                    { name: 'Puna Kai Shopping Center (Pahoa)', lat: 19.5000, lng: -154.9800, times: ['07:10 AM', '10:25 AM', '01:25 PM', '04:40 PM', '06:55 PM'] }
                 ]
             },
             '11': {
                 name: 'Route 11 (Red Line): Hilo to Volcano',
                 stops: [
-                    { name: 'Moʻoheau Bus Terminal', lat: 19.7215, lng: -155.0847, times: ['Depart: 05:00 AM', 'Depart: 07:30 AM', 'Depart: 12:00 PM', 'Depart: 03:30 PM'] },
-                    { name: 'Prince Kuhiō Plaza', lat: 19.6880, lng: -155.0810, times: ['Arrive/Depart: 05:12 AM', 'Arrive/Depart: 07:42 AM', 'Arrive/Depart: 12:12 PM', 'Arrive/Depart: 03:42 PM'] },
-                    { name: 'Keaʻau Village Hub', lat: 19.6235, lng: -155.0380, times: ['Arrive/Depart: 05:25 AM', 'Arrive/Depart: 07:55 AM', 'Arrive/Depart: 12:25 PM', 'Arrive/Depart: 03:55 PM'] },
-                    { name: 'Hawaii Volcanoes National Park Visitor Center', lat: 19.4284, lng: -155.2558, times: ['Arrive: 06:10 AM', 'Arrive: 08:40 AM', 'Arrive: 01:10 PM', 'Arrive: 04:40 PM'] }
+                    { name: 'Moʻoheau Bus Terminal', lat: 19.7215, lng: -155.0847, times: ['05:00 AM', '07:30 AM', '12:00 PM', '03:30 PM'] },
+                    { name: 'Prince Kuhiō Plaza', lat: 19.6880, lng: -155.0810, times: ['05:12 AM', '07:42 AM', '12:12 PM', '03:42 PM'] },
+                    { name: 'Keaʻau Village Hub', lat: 19.6235, lng: -155.0380, times: ['05:25 AM', '07:55 AM', '12:25 PM', '03:55 PM'] },
+                    { name: 'Hawaii Volcanoes National Park Visitor Center', lat: 19.4284, lng: -155.2558, times: ['06:10 AM', '08:40 AM', '01:10 PM', '04:40 PM'] }
                 ]
             },
             '1': {
                 name: 'Route 1: Hilo to Kailua-Kona',
                 stops: [
-                    { name: 'Moʻoheau Bus Terminal', lat: 19.7215, lng: -155.0847, times: ['Depart: 04:45 AM', 'Depart: 08:15 AM', 'Depart: 01:30 PM'] },
-                    { name: 'Keaʻau Town Center', lat: 19.6235, lng: -155.0380, times: ['Arrive/Depart: 05:15 AM', 'Arrive/Depart: 08:45 AM', 'Arrive/Depart: 02:00 PM'] },
-                    { name: 'Waimea Park and Ride', lat: 19.9531, lng: -155.6723, times: ['Arrive/Depart: 06:30 AM', 'Arrive/Depart: 10:00 AM', 'Arrive/Depart: 03:15 PM'] },
-                    { name: 'Loloku Street Park and Ride (Kona Hub)', lat: 19.6400, lng: -155.9969, times: ['Arrive: 08:00 AM', 'Arrive: 11:30 AM', 'Arrive: 04:45 PM'] }
+                    { name: 'Moʻoheau Bus Terminal', lat: 19.7215, lng: -155.0847, times: ['04:45 AM', '08:15 AM', '01:30 PM'] },
+                    { name: 'Keaʻau Town Center', lat: 19.6235, lng: -155.0380, times: ['05:15 AM', '08:45 AM', '02:00 PM'] },
+                    { name: 'Waimea Park and Ride', lat: 19.9531, lng: -155.6723, times: ['06:30 AM', '10:00 AM', '03:15 PM'] },
+                    { name: 'Loloku Street Park and Ride (Kona Hub)', lat: 19.6400, lng: -155.9969, times: ['08:00 AM', '11:30 AM', '04:45 PM'] }
                 ]
             }
         };
@@ -122,20 +129,17 @@
             routeData.stops.forEach((stop, index) => {
                 latLngs.push([stop.lat, stop.lng]);
 
-                // Build rich popup content with explicit arrival/departure schedules
-                let timesHtml = stop.times.map(t => `<li>${t}</li>`).join('');
+                let timesHtml = stop.times.map(t => `<li>Scheduled: ${t}</li>`).join('');
                 let popupContent = `
                     <span class="popup-stop-name">${index + 1}. ${stop.name}</span>
-                    <div class="popup-times-title">Scheduled Times:</div>
+                    <div class="popup-times-title">Official Timetable:</div>
                     <ul class="popup-times-list">${timesHtml}</ul>
                 `;
 
-                // Add marker to map
                 let marker = L.marker([stop.lat, stop.lng]).bindPopup(popupContent);
                 markersLayer.addLayer(marker);
             });
 
-            // Fit map bounds neatly to the selected route's stops
             if (latLngs.length > 0) {
                 map.fitBounds(latLngs, { padding: [50, 50] });
             }
@@ -148,7 +152,6 @@
                 const userLng = position.coords.longitude;
 
                 if (!userMarker) {
-                    // Create a custom pulsing/distinct dot for user GPS position
                     let userIcon = L.divIcon({
                         className: 'user-loc-dot',
                         iconSize: [16, 16],
@@ -163,7 +166,6 @@
             }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 });
         }
 
-        // Initial load default route (Route 402 covering Makuū Drive / Puna)
         loadRouteOnMap();
     </script>
 </body>
