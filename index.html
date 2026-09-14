@@ -250,6 +250,33 @@
             return (brng + 360) % 360;
         }
 
+        // Helper to find the closest shape point bearing for a given stop coordinate
+        function getStopBearing(stopLat, stopLng, shapePoints) {
+            if (!shapePoints || shapePoints.length === 0) return 0;
+            let closestIdx = 0;
+            let minDist = Infinity;
+
+            for (let i = 0; i < shapePoints.length; i++) {
+                let p = shapePoints[i];
+                let dist = Math.pow(p.lat - stopLat, 2) + Math.pow(p.lng - stopLng, 2);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closestIdx = i;
+                }
+            }
+
+            // Look at next point for bearing, or previous if at the very end
+            let p1 = shapePoints[closestIdx];
+            let p2 = shapePoints[closestIdx + 1] || shapePoints[closestIdx - 1];
+            if (!p2) return 0;
+
+            if (closestIdx < shapePoints.length - 1) {
+                return calculateBearing(p1.lat, p1.lng, p2.lat, p2.lng);
+            } else {
+                return calculateBearing(p2.lat, p2.lng, p1.lat, p1.lng);
+            }
+        }
+
         function renderRoute() {
             const routeId = document.getElementById('route-select').value;
             const dayType = document.getElementById('day-select').value;
@@ -258,6 +285,7 @@
 
             let activeStopsMap = {};
             let activeShapes = new Set();
+            let primaryShapePoints = [];
 
             Object.keys(gtfsData.trips).forEach(tripId => {
                 let trip = gtfsData.trips[tripId];
@@ -270,7 +298,12 @@
                     if (!isMatch && Object.keys(gtfsData.trips).length < 500) isMatch = true; 
 
                     if (isMatch) {
-                        if (trip.shape_id) activeShapes.add(trip.shape_id);
+                        if (trip.shape_id) {
+                            activeShapes.add(trip.shape_id);
+                            if (primaryShapePoints.length === 0 && gtfsData.shapes[trip.shape_id]) {
+                                primaryShapePoints = gtfsData.shapes[trip.shape_id];
+                            }
+                        }
                         let tripStops = gtfsData.stopTimes[tripId];
                         if (tripStops && tripStops.length > 0) {
                             let finalStop = tripStops[tripStops.length - 1];
@@ -302,7 +335,7 @@
 
             let latLngs = [];
 
-            // Draw route lines and directional arrows
+            // Draw clean route lines without extra clutter
             activeShapes.forEach(shapeId => {
                 let points = gtfsData.shapes[shapeId];
                 if (points && points.length > 0) {
@@ -310,29 +343,16 @@
                     let polyline = L.polyline(lineCoords, { color: '#38bdf8', weight: 4, opacity: 0.75 });
                     markersLayer.addLayer(polyline);
                     points.forEach(p => latLngs.push([p.lat, p.lng]));
-
-                    // Place directional arrows every ~15 points along the line
-                    for (let i = 0; i < points.length - 1; i += 15) {
-                        let p1 = points[i];
-                        let p2 = points[i + 1];
-                        let angle = calculateBearing(p1.lat, p1.lng, p2.lat, p2.lng);
-                        
-                        let arrowIcon = L.divIcon({
-                            className: 'direction-arrow',
-                            html: `<div style="transform: rotate(${angle}deg); color: #38bdf8; font-size: 12px; font-weight: bold; text-shadow: 0 0 3px #0f172a;">▲</div>`,
-                            iconSize: [14, 14],
-                            iconAnchor: [7, 7]
-                        });
-                        markersLayer.addLayer(L.marker([p1.lat, p1.lng], { icon: arrowIcon, interactive: false }));
-                    }
                 }
             });
 
-            // Draw stops with categorized headsign sections
+            // Replace standard stop teardrops entirely with directional arrows
             Object.keys(activeStopsMap).forEach(stopId => {
                 let stopInfo = gtfsData.stops[stopId];
                 if (stopInfo && !isNaN(stopInfo.lat) && !isNaN(stopInfo.lng)) {
                     latLngs.push([stopInfo.lat, stopInfo.lng]);
+
+                    let bearing = getStopBearing(stopInfo.lat, stopInfo.lng, primaryShapePoints);
 
                     let headsignsObj = activeStopsMap[stopId];
                     let schedulesHtml = '';
@@ -357,16 +377,15 @@
                         ${schedulesHtml}
                     `;
 
-                    let smallIcon = L.icon({
-                        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-                        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-                        iconSize: [12, 20],
-                        iconAnchor: [6, 20],
-                        popupAnchor: [0, -15],
-                        shadowSize: [20, 20]
+                    let arrowIcon = L.divIcon({
+                        className: 'stop-arrow-marker',
+                        html: `<div style="transform: rotate(${bearing}deg); color: #38bdf8; font-size: 16px; font-weight: bold; text-shadow: 0 0 4px #0f172a, 0 0 2px #000; text-align: center;">▲</div>`,
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10],
+                        popupAnchor: [0, -8]
                     });
 
-                    let marker = L.marker([stopInfo.lat, stopInfo.lng], { icon: smallIcon }).bindPopup(popupContent);
+                    let marker = L.marker([stopInfo.lat, stopInfo.lng], { icon: arrowIcon }).bindPopup(popupContent);
                     markersLayer.addLayer(marker);
                 }
             });
