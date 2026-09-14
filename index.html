@@ -29,16 +29,27 @@
         .floating-toggle-btn { position: absolute; top: 6px; right: 8px; z-index: 1001; background: #1e293b; color: #38bdf8; border: 1px solid #475569; border-radius: 4px; padding: 6px 12px; font-size: 0.8rem; font-weight: bold; display: none; box-shadow: 0 2px 6px rgba(0,0,0,0.5); cursor: pointer; }
         body.header-is-collapsed .floating-toggle-btn { display: block; }
 
+        /* Trip Planner Panel */
+        #planner-panel { position: absolute; bottom: 0; left: 0; width: 100%; background: #1e293b; border-top: 2px solid #38bdf8; z-index: 1000; padding: 10px; max-height: 45vh; display: flex; flex-direction: column; box-shadow: 0 -4px 12px rgba(0,0,0,0.5); transition: transform 0.3s ease; }
+        #planner-panel.hidden { transform: translateY(100%); display: none; }
+        .planner-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 0.75rem; font-weight: bold; color: #38bdf8; }
+        .planner-routes-list { list-style: none; overflow-y: auto; max-height: 140px; padding-right: 2px; }
+        .planner-routes-list li { background: #0f172a; padding: 6px; margin-bottom: 4px; border-radius: 4px; font-size: 0.7rem; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #4ade80; }
+        .planner-times { font-family: monospace; color: #4ade80; font-weight: bold; }
+        .planner-meta { color: #94a3b8; font-size: 0.65srem; text-align: right; }
+        
+        .btn-action { background: #334155; color: #38bdf8; border: 1px solid #475569; padding: 4px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; cursor: pointer; margin-top: 4px; margin-right: 4px; }
+        .btn-action:active { background: #475569; }
+
         .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #1e293b !important; color: #f8fafc !important; border: 1px solid #475569; border-radius: 6px; }
         .leaflet-popup-content { font-size: 0.75rem; line-height: 1.3; margin: 8px; max-width: 260px; }
         .popup-stop-name { font-weight: bold; color: #38bdf8; font-size: 0.8rem; margin-bottom: 2px; display: block; }
-        .popup-stop-meta { font-size: 0.65rem; color: #94a3b8; margin-bottom: 4px; }
+        .popup-stop-meta { font-size: 0.65rem; color: #94a3b8; margin-bottom: 6px; }
         .popup-times-title { font-size: 0.6rem; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; margin-bottom: 2px; font-weight: bold; }
-        .popup-times-list { list-style-type: none; padding-left: 0; max-height: 130px; overflow-y: auto; }
-        .popup-times-list li { background: #0f172a; padding: 3px 6px; margin-bottom: 2px; border-radius: 3px; font-size: 0.68rem; display: flex; justify-content: space-between; gap: 6px; align-items: center; }
-        .time-val { font-family: monospace; color: #4ade80; font-weight: bold; flex-shrink: 0; white-space: nowrap; }
+        .popup-times-list { list-style-type: none; padding-left: 0; max-height: 110px; overflow-y: auto; }
+        .popup-times-list li { background: #0f172a; padding: 3px 6px; margin-bottom: 2px; border-radius: 3px; font-size: 0.65rem; display: flex; justify-content: space-between; gap: 4px; align-items: center; }
+        .time-group { font-family: monospace; color: #4ade80; font-weight: bold; white-space: nowrap; flex-shrink: 0; }
         .headsign-val { color: #cbd5e1; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .no-service { color: #f43f5e !important; font-style: italic; }
         
         .user-loc-dot { background: #2563eb; border: 2px solid #ffffff; border-radius: 50%; box-shadow: 0 0 6px rgba(37, 99, 235, 0.8); }
     </style>
@@ -68,6 +79,15 @@
 
     <div id="map"></div>
 
+    <!-- Bottom Trip Planner Results Panel -->
+    <div id="planner-panel" class="hidden">
+        <div class="planner-header">
+            <span id="planner-title">Trip Planner</span>
+            <button class="btn-action" onclick="clearPlanner()">Clear Route</button>
+        </div>
+        <ul id="planner-results" class="planner-routes-list"></ul>
+    </div>
+
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script>
@@ -88,6 +108,7 @@
         let userMarker = null;
 
         let gtfsData = { routes: {}, trips: {}, stops: {}, stopTimes: {}, shapes: {} };
+        let tripPlanner = { startStopId: null, endStopId: null };
 
         function parseCSV(text) {
             let lines = text.trim().split(/\r\n|\n/);
@@ -167,8 +188,13 @@
                     gtfsData.stopTimes[row.trip_id].push({
                         stop_id: row.stop_id,
                         arr: row.arrival_time ? row.arrival_time.substring(0, 5) : '',
-                        dep: row.departure_time ? row.departure_time.substring(0, 5) : ''
+                        dep: row.departure_time ? row.departure_time.substring(0, 5) : '',
+                        seq: parseInt(row.stop_sequence || 0)
                     });
+                });
+
+                Object.keys(gtfsData.stopTimes).forEach(tripId => {
+                    gtfsData.stopTimes[tripId].sort((a, b) => a.seq - b.seq);
                 });
 
                 parseCSV(shapesText).forEach(row => {
@@ -237,17 +263,22 @@
 
                     if (isMatch) {
                         if (trip.shape_id) activeShapes.add(trip.shape_id);
-                        if (gtfsData.stopTimes[tripId]) {
-                            gtfsData.stopTimes[tripId].forEach(st => {
+                        let tripStops = gtfsData.stopTimes[tripId];
+                        if (tripStops && tripStops.length > 0) {
+                            let finalStop = tripStops[tripStops.length - 1];
+                            let finalArrTime = finalStop ? (finalStop.arr || finalStop.dep) : '';
+
+                            tripStops.forEach(st => {
                                 if (!activeStopsMap[st.stop_id]) {
                                     activeStopsMap[st.stop_id] = [];
                                 }
-                                let sortTime = st.dep || st.arr;
-                                if (sortTime) {
+                                let localTime = st.dep || st.arr;
+                                let localLabel = st.dep ? 'D' : 'A';
+                                if (localTime) {
                                     activeStopsMap[st.stop_id].push({
-                                        sortTime: sortTime,
-                                        arr: st.arr,
-                                        dep: st.dep,
+                                        sortTime: localTime,
+                                        localText: `${localLabel} ${localTime}`,
+                                        destText: finalArrTime ? `A ${finalArrTime}` : '',
                                         headsign: trip.headsign
                                     });
                                 }
@@ -259,47 +290,35 @@
 
             let latLngs = [];
 
-            // Draw route shapes
             activeShapes.forEach(shapeId => {
                 let points = gtfsData.shapes[shapeId];
                 if (points && points.length > 0) {
                     let lineCoords = points.map(p => [p.lat, p.lng]);
-                    let polyline = L.polyline(lineCoords, {
-                        color: '#38bdf8',
-                        weight: 4,
-                        opacity: 0.75
-                    });
+                    let polyline = L.polyline(lineCoords, { color: '#38bdf8', weight: 4, opacity: 0.75 });
                     markersLayer.addLayer(polyline);
                     points.forEach(p => latLngs.push([p.lat, p.lng]));
                 }
             });
 
-            // Draw stop markers and popups with Arrival/Leaving times + headsigns
             Object.keys(activeStopsMap).forEach(stopId => {
                 let stopInfo = gtfsData.stops[stopId];
                 if (stopInfo && !isNaN(stopInfo.lat) && !isNaN(stopInfo.lng)) {
                     latLngs.push([stopInfo.lat, stopInfo.lng]);
 
-                    // Sort chronologically by time
                     let timesArr = activeStopsMap[stopId].sort((a, b) => a.sortTime.localeCompare(b.sortTime));
                     
                     let timesHtml = timesArr.length > 0 ? 
-                        '<div class="popup-times-title">Times & Destination:</div><ul class="popup-times-list">' + 
-                        timesArr.map(item => {
-                            let timeStr = '';
-                            if (item.arr && item.dep && item.arr !== item.dep) {
-                                timeStr = `A:${item.arr} L:${item.dep}`;
-                            } else {
-                                timeStr = item.dep || item.arr;
-                            }
-                            return `<li><span class="time-val">${timeStr}</span><span class="headsign-val">${item.headsign}</span></li>`;
-                        }).join('') + 
-                        '</ul>' : 
-                        '<div class="popup-times-title">Times:</div><p class="no-service">No times listed.</p>';
+                        '<div class="popup-times-title">Stop Schedule:</div><ul class="popup-times-list">' + 
+                        timesArr.map(item => `<li><span class="time-group">${item.localText} &rarr; ${item.destText}</span><span class="headsign-val">${item.headsign}</span></li>`).join('') + 
+                        '</ul>' : '<p>No times listed.</p>';
 
                     let popupContent = `
                         <span class="popup-stop-name">${stopInfo.name}</span>
                         <div class="popup-stop-meta">Stop Code: ${stopInfo.code}</div>
+                        <div>
+                            <button class="btn-action" onclick="setPlannerStop('${stopId}', 'start')">📍 Set Start</button>
+                            <button class="btn-action" onclick="setPlannerStop('${stopId}', 'end')">🏁 Set End</button>
+                        </div>
                         ${timesHtml}
                     `;
 
@@ -319,9 +338,94 @@
 
             if (latLngs.length > 1) {
                 map.fitBounds(latLngs, { padding: [30, 30] });
-            } else if (latLngs.length === 1) {
-                map.setView(latLngs[0], 14);
             }
+        }
+
+        function setPlannerStop(stopId, type) {
+            if (type === 'start') {
+                tripPlanner.startStopId = stopId;
+            } else {
+                tripPlanner.endStopId = stopId;
+            }
+            map.closePopup();
+            evaluateTripPlanner();
+        }
+
+        function evaluateTripPlanner() {
+            const panel = document.getElementById('planner-panel');
+            const title = document.getElementById('planner-title');
+            const resultsList = document.getElementById('planner-results');
+
+            if (!tripPlanner.startStopId || !tripPlanner.endStopId) {
+                panel.classList.remove('hidden');
+                let startName = tripPlanner.startStopId ? gtfsData.stops[tripPlanner.startStopId].name : 'Not set';
+                let endName = tripPlanner.endStopId ? gtfsData.stops[tripPlanner.endStopId].name : 'Not set';
+                title.textContent = `Planner: ${tripPlanner.startStopId ? '📍 Start Set' : 'Select Start'} → ${tripPlanner.endStopId ? '🏁 End Set' : 'Select End'}`;
+                resultsList.innerHTML = `<li style="justify-content:center; color:#94a3b8;">From: ${startName}<br>To: ${endName}</li>`;
+                return;
+            }
+
+            let startStop = gtfsData.stops[tripPlanner.startStopId];
+            let endStop = gtfsData.stops[tripPlanner.endStopId];
+            title.textContent = `${startStop.name} ➔ ${endStop.name}`;
+
+            let validTrips = [];
+            const dayType = document.getElementById('day-select').value;
+
+            Object.keys(gtfsData.trips).forEach(tripId => {
+                let trip = gtfsData.trips[tripId];
+                let sId = trip.service_id.toLowerCase();
+                let isMatch = false;
+                if (dayType === 'weekday' && (sId.includes('week') || sId.includes('mon') || sId.includes('wd'))) isMatch = true;
+                if (dayType === 'saturday' && (sId.includes('sat') || sId.includes('we'))) isMatch = true;
+                if (dayType === 'sunday' && (sId.includes('sun') || sId.includes('hol') || sId.includes('we'))) isMatch = true;
+                if (!isMatch && Object.keys(gtfsData.trips).length < 500) isMatch = true;
+
+                if (isMatch) {
+                    let stops = gtfsData.stopTimes[tripId] || [];
+                    let startIndex = -1, endIndex = -1;
+                    for (let i = 0; i < stops.length; i++) {
+                        if (stops[i].stop_id === tripPlanner.startStopId) startIndex = i;
+                        if (stops[i].stop_id === tripPlanner.endStopId) endIndex = i;
+                    }
+
+                    if (startIndex !== -1 && endIndex !== -1 && startIndex < endIndex) {
+                        let depTime = stops[startIndex].dep || stops[startIndex].arr;
+                        let arrTime = stops[endIndex].arr || stops[endIndex].dep;
+                        validTrips.push({
+                            depTime,
+                            arrTime,
+                            headsign: trip.headsign
+                        });
+                    }
+                }
+            });
+
+            validTrips.sort((a, b) => a.depTime.localeCompare(b.depTime));
+
+            resultsList.innerHTML = '';
+            if (validTrips.length > 0) {
+                validTrips.forEach(vt => {
+                    let li = document.createElement('li');
+                    li.innerHTML = `
+                        <div>
+                            <div class="planner-times">Dep: ${vt.depTime} &rarr; Arr: ${vt.arrTime}</div>
+                            <div style="font-size:0.6rem; color:#cbd5e1;">Dest: ${vt.headsign}</div>
+                        </div>
+                    `;
+                    resultsList.appendChild(li);
+                });
+            } else {
+                resultsList.innerHTML = `<li style="justify-content:center; color:#f43f5e;">No direct trips found between these stops for this schedule.</li>`;
+            }
+
+            panel.classList.remove('hidden');
+        }
+
+        function clearPlanner() {
+            tripPlanner.startStopId = null;
+            tripPlanner.endStopId = null;
+            document.getElementById('planner-panel').classList.add('hidden');
         }
 
         if ("geolocation" in navigator) {
