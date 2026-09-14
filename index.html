@@ -2,46 +2,45 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hele-On Stop Map & Timetable</title>
-    <!-- Leaflet CSS for Map Rendering -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hele-On Mini Map</title>
+    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
-        header { background: #1e293b; padding: 12px 16px; border-bottom: 1px solid #334155; display: flex; flex-direction: column; gap: 8px; z-index: 1000; }
-        h1 { font-size: 1.1rem; color: #38bdf8; }
-        .controls { display: flex; gap: 8px; width: 100%; }
-        select { flex: 1; background: #334155; color: #fff; border: 1px solid #475569; padding: 10px; border-radius: 6px; font-size: 0.95rem; font-weight: bold; }
+        
+        /* Compact Header optimized for narrow Tank Mini screen */
+        header { background: #1e293b; padding: 8px 10px; border-bottom: 1px solid #334155; display: flex; flex-direction: column; gap: 6px; z-index: 1000; }
+        h1 { font-size: 0.95rem; color: #38bdf8; text-align: center; }
+        .controls { display: flex; width: 100%; }
+        select { width: 100%; background: #334155; color: #fff; border: 1px solid #475569; padding: 6px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+        
         #map { flex: 1; width: 100%; background: #0f172a; z-index: 1; }
         
-        /* Custom Popup Styling */
-        .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #1e293b !important; color: #f8fafc !important; border: 1px solid #475569; border-radius: 8px; }
-        .leaflet-popup-content { font-size: 0.9rem; line-height: 1.4; margin: 12px; }
-        .popup-stop-name { font-weight: bold; color: #38bdf8; font-size: 1rem; margin-bottom: 4px; display: block; }
-        .popup-stop-meta { font-size: 0.8rem; color: #94a3b8; margin-bottom: 6px; }
-        .popup-times-title { font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 6px; margin-bottom: 2px; }
-        .popup-times-list { list-style-type: none; padding-left: 0; max-height: 120px; overflow-y: auto; }
-        .popup-times-list li { background: #0f172a; padding: 4px 6px; margin-bottom: 3px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; color: #4ade80; }
+        /* Compact Popup Styling for Small Screens */
+        .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #1e293b !important; color: #f8fafc !important; border: 1px solid #475569; border-radius: 6px; }
+        .leaflet-popup-content { font-size: 0.8rem; line-height: 1.3; margin: 8px; }
+        .popup-stop-name { font-weight: bold; color: #38bdf8; font-size: 0.85rem; margin-bottom: 2px; display: block; }
+        .popup-stop-meta { font-size: 0.7rem; color: #94a3b8; margin-bottom: 4px; }
+        .popup-times-title { font-size: 0.65rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; margin-bottom: 2px; }
+        .popup-times-list { list-style-type: none; padding-left: 0; max-height: 90px; overflow-y: auto; }
+        .popup-times-list li { background: #0f172a; padding: 3px 5px; margin-bottom: 2px; border-radius: 3px; font-family: monospace; font-size: 0.75rem; color: #4ade80; }
         
-        /* GPS Marker Styling */
-        .user-loc-dot { background: #2563eb; border: 3px solid #ffffff; border-radius: 50%; box-shadow: 0 0 10px rgba(37, 99, 235, 0.8); }
+        /* Halved GPS & Stop Marker sizing */
+        .user-loc-dot { background: #2563eb; border: 2px solid #ffffff; border-radius: 50%; box-shadow: 0 0 6px rgba(37, 99, 235, 0.8); }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>Hele-On Stop & Schedule Map</h1>
+        <h1>Hele-On Mini Map</h1>
         <div class="controls">
             <select id="route-select" onchange="loadRouteOnMap()">
-                <option value="hpp-paradise">HPP: Paradise Drive Corridor (Westbound)</option>
-                <option value="hpp-makuu">HPP: Makuu Drive Corridor (Eastbound)</option>
-                <option value="hpp-hwy130">HPP: Highway 130 Border / Access Stops</option>
-                <option value="402">Route 402: Hawaiian Paradise Park / Ainaloa (via Makuū)</option>
-                <option value="401">Route 401: Hawaiian Beaches / Puna</option>
-                <option value="40">Route 40: Hilo to Pahoa</option>
-                <option value="11">Route 11: Hilo to Volcano</option>
-                <option value="1">Route 1: Hilo to Kailua-Kona</option>
+                <option value="hpp-paradise">HPP: Paradise Drive Corridor</option>
+                <option value="hilo-volcano">Route 11: Hilo to Volcano (Official Stops)</option>
+                <option value="hilo-kona">Route 1: Hilo to Kona Hubs</option>
+                <option value="hilo-pahoa">Route 40: Hilo to Pahoa</option>
             </select>
         </div>
     </header>
@@ -51,87 +50,51 @@
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script>
-        // Initialize Map centered over Hawaiian Paradise Park / East Hawaii
-        const map = L.map('map').setView([19.5750, -154.9600], 14);
+        // Initialize Map centered over East Hawaii / HPP
+        const map = L.map('map').setView([19.5750, -154.9600], 13);
 
-        // Free OpenStreetMap Tile Layer
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            attribution: '&copy; OpenStreetMap'
         }).addTo(map);
 
         let markersLayer = L.layerGroup().addTo(map);
         let userMarker = null;
 
-        // Comprehensive Master Database including precise HPP hardcoded coordinates
+        // Master Database enriched with official stops.txt data and local corridor points[cite: 4]
         const networkDatabase = {
             'hpp-paradise': {
-                name: 'Paradise Drive Corridor (Westbound)',
+                name: 'Paradise Drive Corridor',
                 stops: [
-                    { name: 'Paradise Drive & 1st Ave', stop_id: 189, type: 'Westbound flag stop', lat: 19.603062, lng: -154.948458, times: ['06:00 AM', '08:00 AM', '02:00 PM', '05:00 PM'] },
-                    { name: 'Paradise Drive & 5th Ave', stop_id: 190, type: 'Westbound flag stop', lat: 19.597382, lng: -154.953595, times: ['06:02 AM', '08:02 AM', '02:02 PM', '05:02 PM'] },
-                    { name: 'Paradise Drive & 9th Ave', stop_id: 191, type: 'Westbound flag stop', lat: 19.591684, lng: -154.958734, times: ['06:04 AM', '08:04 AM', '02:04 PM', '05:04 PM'] },
-                    { name: 'Paradise Drive & 14th Ave', stop_id: 192, type: 'Westbound flag stop', lat: 19.584517, lng: -154.965192, times: ['06:07 AM', '08:07 AM', '02:07 PM', '05:07 PM'] },
-                    { name: 'Paradise Drive & 18th Ave', stop_id: 198, type: 'Westbound flag stop', lat: 19.578791, lng: -154.970392, times: ['06:10 AM', '08:10 AM', '02:10 PM', '05:10 PM'] },
-                    { name: 'Paradise Drive & 22nd Ave', stop_id: 176, type: 'Westbound flag stop', lat: 19.572972, lng: -154.975722, times: ['06:13 AM', '08:13 AM', '02:13 PM', '05:13 PM'] },
-                    { name: 'Paradise Drive & 25th Ave', stop_id: 177, type: 'Westbound mailbox flag stop', lat: 19.568732, lng: -154.979513, times: ['06:15 AM', '08:15 AM', '02:15 PM', '05:15 PM'] },
-                    { name: 'Paradise Drive & 31st Ave', stop_id: 178, stop_code: 931, type: 'Westbound mailbox flag stop', lat: 19.560148, lng: -154.987286, times: ['06:18 AM', '08:18 AM', '02:18 PM', '05:18 PM'] }
+                    { name: 'Paradise Drive & 1st Ave', stop_id: 189, type: 'Westbound flag stop', lat: 19.603062, lng: -154.948458, times: ['06:00 AM', '08:00 AM', '02:00 PM'] },
+                    { name: 'Paradise Drive & 9th Ave', stop_id: 191, type: 'Westbound flag stop', lat: 19.591684, lng: -154.958734, times: ['06:04 AM', '08:04 AM', '02:04 PM'] },
+                    { name: 'Paradise Drive & 18th Ave', stop_id: 198, type: 'Westbound flag stop', lat: 19.578791, lng: -154.970392, times: ['06:10 AM', '08:10 AM', '02:10 PM'] },
+                    { name: 'Paradise Drive & 31st Ave', stop_id: 178, stop_code: 931, type: 'Mailbox flag stop', lat: 19.560148, lng: -154.987286, times: ['06:18 AM', '08:18 AM', '02:18 PM'] }
                 ]
             },
-            'hpp-makuu': {
-                name: 'Makuu Drive Corridor (Eastbound)',
+            'hilo-volcano': {
+                name: 'Route 11: Hilo to Volcano',
                 stops: [
-                    { name: 'Makuu Drive & 1st Ave', stop_id: 197, type: 'Eastbound flag stop', lat: 19.593318, lng: -154.936252, times: ['06:30 AM', '08:30 AM', '02:30 PM', '05:30 PM'] },
-                    { name: 'Makuu Drive & 4th Ave', stop_id: 196, type: 'Eastbound flag stop', lat: 19.589206, lng: -154.939954, times: ['06:32 AM', '08:32 AM', '02:32 PM', '05:32 PM'] },
-                    { name: 'Makuu Drive & 8th Ave', stop_id: 195, type: 'Eastbound flag stop', lat: 19.583444, lng: -154.945114, times: ['06:35 AM', '08:35 AM', '02:35 PM', '05:35 PM'] },
-                    { name: 'Makuu Drive & 12th Ave', stop_id: 194, type: 'Eastbound flag stop', lat: 19.577724, lng: -154.950267, times: ['06:38 AM', '08:38 AM', '02:38 PM', '05:38 PM'] },
-                    { name: 'Makuu Drive & 16th Ave', stop_id: 193, type: 'Eastbound shelter across Community Center', lat: 19.571793, lng: -154.955642, times: ['06:41 AM', '08:41 AM', '02:41 PM', '05:41 PM'] },
-                    { name: 'Makuu Drive & 21st Ave', stop_id: 175, type: 'Eastbound flag stop', lat: 19.564556, lng: -154.962167, times: ['06:45 AM', '08:45 AM', '02:45 PM', '05:45 PM'] },
-                    { name: 'Makuu Drive & 25th Ave', stop_id: 174, type: 'Eastbound flag stop', lat: 19.560278, lng: -154.966056, times: ['06:48 AM', '08:48 AM', '02:48 PM', '05:48 PM'] },
-                    { name: 'Makuu Drive & 31st Ave', stop_id: 173, type: 'Eastbound flag stop', lat: 19.550528, lng: -154.974889, times: ['06:52 AM', '08:52 AM', '02:52 PM', '05:52 PM'] }
+                    { name: "Mo'oheau Bus Terminal", stop_id: 1, stop_code: 100, type: 'Terminal hub[cite: 4]', lat: 19.724013, lng: -155.084657, times: ['05:00 AM', '07:30 AM', '12:00 PM'] },
+                    { name: "Kurtistown Park / Hwy 11", stop_id: 13, stop_code: 903, type: 'Flag stop[cite: 4]', lat: 19.591883, lng: -155.059193, times: ['05:35 AM', '08:05 AM', '12:35 PM'] },
+                    { name: "Mountain View (Frankie's)", stop_id: 14, stop_code: 911, type: 'Roadside flag stop[cite: 4]', lat: 19.551349, lng: -155.106792, times: ['05:50 AM', '08:20 AM', '12:50 PM'] },
+                    { name: "Volcano Village Post Office", stop_id: 17, stop_code: 916, type: 'Flag stop[cite: 4]', lat: 19.427889, lng: -155.236028, times: ['06:15 AM', '08:45 AM', '01:15 PM'] },
+                    { name: "HVNP Visitors Center", stop_id: 19, stop_code: 809, type: 'Park flag stop ($15 fee)[cite: 4]', lat: 19.429472, lng: -155.257306, times: ['06:25 AM', '08:55 AM', '01:25 PM'] }
                 ]
             },
-            'hpp-hwy130': {
-                name: 'Highway 130 Border / Access Stops',
+            'hilo-kona': {
+                name: 'Route 1: Hilo to Kona',
                 stops: [
-                    { name: 'Shower Drive Intersection', stop_id: 183, type: 'Southbound roadside flag stop on Hwy 130', lat: 19.582502, lng: -155.008498, times: ['07:00 AM', '09:00 AM', '03:00 PM', '06:00 PM'] },
-                    { name: 'Kaloli Drive Intersection', stop_id: 184, type: 'Southbound roadside flag stop on Hwy 130', lat: 19.569602, lng: -154.999323, times: ['07:04 AM', '09:04 AM', '03:04 PM', '06:04 PM'] },
-                    { name: 'Paradise Drive Intersection', stop_id: 185, type: 'Southbound roadside flag stop on Hwy 130', lat: 19.557147, lng: -154.989598, times: ['07:08 AM', '09:08 AM', '03:08 PM', '06:08 PM'] }
+                    { name: "Mo'oheau Bus Terminal", stop_id: 1, stop_code: 100, type: 'Terminal hub[cite: 4]', lat: 19.724013, lng: -155.084657, times: ['04:45 AM', '08:15 AM', '01:30 PM'] },
+                    { name: "Waimea Parker Ranch Center", stop_id: 36, stop_code: 422, type: 'Bus shelter[cite: 4]', lat: 20.021564, lng: -155.665946, times: ['06:00 AM', '09:30 AM', '02:45 PM'] },
+                    { name: "Kona Courtyard Marriott / Palani", stop_id: 80, stop_code: 650, type: 'Southbound stop[cite: 4]', lat: 19.640312, lng: -155.996855, times: ['08:00 AM', '11:30 AM', '04:45 PM'] }
                 ]
             },
-            '402': {
-                name: 'Route 402: Hawaiian Paradise Park / Ainaloa (via Makuū)',
-                stops: [
-                    { name: 'Puna Kai Shopping Center (Pahoa Hub)', lat: 19.501235, lng: -154.979512, times: ['05:30 AM', '07:30 AM', '01:30 PM', '03:30 PM', '05:30 PM'] },
-                    { name: 'Keaʻau Village Hub / Post Office', lat: 19.623510, lng: -155.038020, times: ['06:15 AM', '08:15 AM', '02:15 PM', '04:15 PM', '06:15 PM'] }
-                ]
-            },
-            '401': {
-                name: 'Route 401: Hawaiian Beaches / Puna',
-                stops: [
-                    { name: 'Puna Kai Shopping Center (Pahoa Hub)', lat: 19.501235, lng: -154.979512, times: ['06:30 AM', '09:00 AM', '12:30 PM', '03:30 PM', '05:30 PM'] },
-                    { name: 'Hawaiian Beaches (Beach Rd Shelter)', lat: 19.492100, lng: -154.951200, times: ['06:45 AM', '09:15 AM', '12:45 PM', '03:45 PM', '05:45 PM'] }
-                ]
-            },
-            '40': {
+            'hilo-pahoa': {
                 name: 'Route 40: Hilo to Pahoa',
                 stops: [
-                    { name: 'Moʻoheau Bus Terminal', lat: 19.721500, lng: -155.084700, times: ['06:15 AM', '09:30 AM', '12:30 PM', '03:45 PM', '06:00 PM'] },
-                    { name: 'Keaʻau Village Hub', lat: 19.623500, lng: -155.038000, times: ['06:40 AM', '09:55 AM', '12:55 PM', '04:10 PM', '06:25 PM'] }
-                ]
-            },
-            '11': {
-                name: 'Route 11 (Red Line): Hilo to Volcano',
-                stops: [
-                    { name: 'Moʻoheau Bus Terminal', lat: 19.721500, lng: -155.084700, times: ['05:00 AM', '07:30 AM', '12:00 PM', '03:30 PM'] },
-                    { name: 'Hawaii Volcanoes National Park Visitor Center', lat: 19.428400, lng: -155.255800, times: ['06:10 AM', '08:40 AM', '01:10 PM', '04:40 PM'] }
-                ]
-            },
-            '1': {
-                name: 'Route 1: Hilo to Kailua-Kona',
-                stops: [
-                    { name: 'Moʻoheau Bus Terminal', lat: 19.721500, lng: -155.084700, times: ['04:45 AM', '08:15 AM', '01:30 PM'] },
-                    { name: 'Loloku Street Park and Ride (Kona Hub)', lat: 19.640000, lng: -155.996900, times: ['08:00 AM', '11:30 AM', '04:45 PM'] }
+                    { name: "Mo'oheau Bus Terminal", stop_id: 1, stop_code: 100, type: 'Terminal hub[cite: 4]', lat: 19.724013, lng: -155.084657, times: ['06:15 AM', '09:30 AM', '03:45 PM'] },
+                    { name: "Kea'au Village Hub / Post Office", stop_id: 25, stop_code: 924, type: 'Hub stop[cite: 4]', lat: 19.621512, lng: -155.039946, times: ['06:40 AM', '09:55 AM', '04:10 PM'] }
                 ]
             }
         };
@@ -153,23 +116,33 @@
                 if (stop.stop_code) stopMeta += `(Code: ${stop.stop_code}) `;
                 if (stop.type) stopMeta += `<br>${stop.type}`;
 
-                let timesHtml = stop.times ? stop.times.map(t => `<li>Scheduled: ${t}</li>`).join('') : '';
+                let timesHtml = stop.times ? stop.times.map(t => `<li>${t}</li>`).join('') : '';
                 let popupContent = `
                     <span class="popup-stop-name">${index + 1}. ${stop.name}</span>
                     <div class="popup-stop-meta">${stopMeta}</div>
-                    ${timesHtml ? '<div class="popup-times-title">Official Timetable:</div><ul class="popup-times-list">' + timesHtml + '</ul>' : ''}
+                    ${timesHtml ? '<div class="popup-times-title">Schedule:</div><ul class="popup-times-list">' + timesHtml + '</ul>' : ''}
                 `;
 
-                let marker = L.marker([stop.lat, stop.lng]).bindPopup(popupContent);
+                // Custom small icon configuration (halved standard dimensions)
+                let smallIcon = L.icon({
+                    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+                    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+                    iconSize: [12, 20],      // Halved from 25x41
+                    iconAnchor: [6, 20],     // Halved anchor
+                    popupAnchor: [0, -15],
+                    shadowSize: [20, 20]
+                });
+
+                let marker = L.marker([stop.lat, stop.lng], { icon: smallIcon }).bindPopup(popupContent);
                 markersLayer.addLayer(marker);
             });
 
             if (latLngs.length > 0) {
-                map.fitBounds(latLngs, { padding: [50, 50] });
+                map.fitBounds(latLngs, { padding: [30, 30] });
             }
         }
 
-        // Persistent real-time GPS tracker keeping your location live without refreshes
+        // GPS Tracker with scaled down dot element
         if ("geolocation" in navigator) {
             navigator.geolocation.watchPosition(position => {
                 const userLat = position.coords.latitude;
@@ -178,8 +151,8 @@
                 if (!userMarker) {
                     let userIcon = L.divIcon({
                         className: 'user-loc-dot',
-                        iconSize: [16, 16],
-                        iconAnchor: [8, 8]
+                        iconSize: [10, 10],   // Halved from 16x16
+                        iconAnchor: [5, 5]
                     });
                     userMarker = L.marker([userLat, userLng], { icon: userIcon }).addTo(map).bindPopup("<b>You are here</b>");
                 } else {
@@ -190,7 +163,6 @@
             }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 });
         }
 
-        // Initialize default view
         loadRouteOnMap();
     </script>
 </body>
