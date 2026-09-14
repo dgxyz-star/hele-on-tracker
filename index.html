@@ -30,12 +30,14 @@
         body.header-is-collapsed .floating-toggle-btn { display: block; }
 
         .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #1e293b !important; color: #f8fafc !important; border: 1px solid #475569; border-radius: 6px; }
-        .leaflet-popup-content { font-size: 0.75rem; line-height: 1.3; margin: 8px; }
+        .leaflet-popup-content { font-size: 0.75rem; line-height: 1.3; margin: 8px; max-width: 240px; }
         .popup-stop-name { font-weight: bold; color: #38bdf8; font-size: 0.8rem; margin-bottom: 2px; display: block; }
         .popup-stop-meta { font-size: 0.65rem; color: #94a3b8; margin-bottom: 4px; }
         .popup-times-title { font-size: 0.6rem; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; margin-bottom: 2px; font-weight: bold; }
-        .popup-times-list { list-style-type: none; padding-left: 0; max-height: 80px; overflow-y: auto; }
-        .popup-times-list li { background: #0f172a; padding: 2px 4px; margin-bottom: 2px; border-radius: 3px; font-family: monospace; font-size: 0.7rem; color: #4ade80; }
+        .popup-times-list { list-style-type: none; padding-left: 0; max-height: 120px; overflow-y: auto; }
+        .popup-times-list li { background: #0f172a; padding: 3px 6px; margin-bottom: 2px; border-radius: 3px; font-size: 0.7rem; display: flex; justify-content: space-between; gap: 6px; align-items: center; }
+        .time-val { font-family: monospace; color: #4ade80; font-weight: bold; flex-shrink: 0; }
+        .headsign-val { color: #cbd5e1; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .no-service { color: #f43f5e !important; font-style: italic; }
         
         .user-loc-dot { background: #2563eb; border: 2px solid #ffffff; border-radius: 50%; box-shadow: 0 0 6px rgba(37, 99, 235, 0.8); }
@@ -153,7 +155,8 @@
                     gtfsData.trips[row.trip_id] = {
                         route_id: row.route_id,
                         service_id: row.service_id,
-                        shape_id: row.shape_id
+                        shape_id: row.shape_id,
+                        headsign: row.trip_headsign || ''
                     };
                 });
 
@@ -179,7 +182,6 @@
                     });
                 });
 
-                // Sort points for each shape by sequence number
                 Object.keys(gtfsData.shapes).forEach(sId => {
                     gtfsData.shapes[sId].sort((a, b) => a.seq - b.seq);
                 });
@@ -237,9 +239,14 @@
                         if (gtfsData.stopTimes[tripId]) {
                             gtfsData.stopTimes[tripId].forEach(st => {
                                 if (!activeStopsMap[st.stop_id]) {
-                                    activeStopsMap[st.stop_id] = new Set();
+                                    activeStopsMap[st.stop_id] = [];
                                 }
-                                if (st.time) activeStopsMap[st.stop_id].add(st.time.substring(0, 5));
+                                if (st.time) {
+                                    activeStopsMap[st.stop_id].push({
+                                        time: st.time.substring(0, 5),
+                                        headsign: trip.headsign
+                                    });
+                                }
                             });
                         }
                     }
@@ -248,7 +255,7 @@
 
             let latLngs = [];
 
-            // 1. Draw route shape polylines if available
+            // Draw route shapes
             activeShapes.forEach(shapeId => {
                 let points = gtfsData.shapes[shapeId];
                 if (points && points.length > 0) {
@@ -263,15 +270,19 @@
                 }
             });
 
-            // 2. Draw stop markers and popups
+            // Draw stop markers and popups with times + headsigns
             Object.keys(activeStopsMap).forEach(stopId => {
                 let stopInfo = gtfsData.stops[stopId];
                 if (stopInfo && !isNaN(stopInfo.lat) && !isNaN(stopInfo.lng)) {
                     latLngs.push([stopInfo.lat, stopInfo.lng]);
 
-                    let timesArr = Array.from(activeStopsMap[stopId]).sort();
+                    // Sort chronologically by time
+                    let timesArr = activeStopsMap[stopId].sort((a, b) => a.time.localeCompare(b.time));
+                    
                     let timesHtml = timesArr.length > 0 ? 
-                        '<div class="popup-times-title">Times:</div><ul class="popup-times-list">' + timesArr.map(t => `<li>${t}</li>`).join('') + '</ul>' : 
+                        '<div class="popup-times-title">Times & Destination:</div><ul class="popup-times-list">' + 
+                        timesArr.map(item => `<li><span class="time-val">${item.time}</span><span class="headsign-val">${item.headsign}</span></li>`).join('') + 
+                        '</ul>' : 
                         '<div class="popup-times-title">Times:</div><p class="no-service">No times listed.</p>';
 
                     let popupContent = `
