@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Hele-On Mini Map</title>
+    <title>Hele-On GTFS Viewer</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
         
-        /* Compact Header controls optimized for the Tank Mini */
         header { background: #1e293b; padding: 6px 8px; border-bottom: 1px solid #334155; display: flex; flex-direction: column; gap: 4px; z-index: 1000; }
         h1 { font-size: 0.9rem; color: #38bdf8; text-align: center; }
         .controls-row { display: flex; gap: 4px; width: 100%; }
@@ -18,7 +17,7 @@
         
         #map { flex: 1; width: 100%; background: #0f172a; z-index: 1; }
         
-        /* Compact Popup Styling */
+        /* Popup Styling */
         .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #1e293b !important; color: #f8fafc !important; border: 1px solid #475569; border-radius: 6px; }
         .leaflet-popup-content { font-size: 0.75rem; line-height: 1.3; margin: 8px; }
         .popup-stop-name { font-weight: bold; color: #38bdf8; font-size: 0.8rem; margin-bottom: 2px; display: block; }
@@ -28,23 +27,17 @@
         .popup-times-list li { background: #0f172a; padding: 2px 4px; margin-bottom: 2px; border-radius: 3px; font-family: monospace; font-size: 0.7rem; color: #4ade80; }
         .no-service { color: #f43f5e !important; font-style: italic; }
         
-        /* Halved GPS Marker */
         .user-loc-dot { background: #2563eb; border: 2px solid #ffffff; border-radius: 50%; box-shadow: 0 0 6px rgba(37, 99, 235, 0.8); }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>Hele-On Mini Map</h1>
+        <h1>Hele-On GTFS Viewer</h1>
         <div class="controls-row">
-            <select id="route-select" onchange="updateDisplay()">
-                <option value="hpp-paradise">HPP: Paradise Dr Corridor</option>
-                <option value="hilo-volcano">Route 11: Hilo to Volcano</option>
-                <option value="hilo-kona">Route 1: Hilo to Kona Hubs</option>
-                <option value="hilo-pahoa">Route 40: Hilo to Pahoa</option>
-            </select>
-            <select id="day-select" onchange="updateDisplay()">
-                <option value="weekday">Mon - Fri (Weekday)</option>
+            <select id="route-select" onchange="renderRoute()"><option value="">Loading routes...</option></select>
+            <select id="day-select" onchange="renderRoute()">
+                <option value="weekday">Mon - Fri</option>
                 <option value="saturday">Saturday</option>
                 <option value="sunday">Sunday / Holiday</option>
             </select>
@@ -56,9 +49,7 @@
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script>
-        // Initialize Map centered over East Hawaii / HPP
-        const map = L.map('map').setView([19.5750, -154.9600], 13);
-
+        const map = L.map('map').setView([19.5750, -154.9600], 11);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; OpenStreetMap'
@@ -67,145 +58,189 @@
         let markersLayer = L.layerGroup().addTo(map);
         let userMarker = null;
 
-        // Comprehensive Database broken down by schedule service categories (Weekday vs Saturday vs Sunday)
-        const networkDatabase = {
-            'hpp-paradise': {
-                name: 'Paradise Drive Corridor',
-                stops: [
-                    { 
-                        name: 'Paradise Drive & 1st Ave', stop_id: 189, type: 'Westbound flag stop', lat: 19.603062, lng: -154.948458, 
-                        schedule: { weekday: ['05:45 AM', '07:15 AM', '02:00 PM', '05:15 PM'], saturday: ['07:00 AM', '12:00 PM'], sunday: [] } 
-                    },
-                    { 
-                        name: 'Paradise Drive & 9th Ave', stop_id: 191, type: 'Westbound flag stop', lat: 19.591684, lng: -154.958734, 
-                        schedule: { weekday: ['05:49 AM', '07:19 AM', '02:04 PM', '05:19 PM'], saturday: ['07:04 AM', '12:04 PM'], sunday: [] } 
-                    },
-                    { 
-                        name: 'Paradise Drive & 18th Ave', stop_id: 198, type: 'Westbound flag stop', lat: 19.578791, lng: -154.970392, 
-                        schedule: { weekday: ['05:55 AM', '07:25 AM', '02:10 PM', '05:25 PM'], saturday: ['07:10 AM', '12:10 PM'], sunday: [] } 
-                    },
-                    { 
-                        name: 'Paradise Drive & 31st Ave', stop_id: 178, stop_code: 931, type: 'Mailbox flag stop', lat: 19.560148, lng: -154.987286, 
-                        schedule: { weekday: ['06:03 AM', '07:33 AM', '02:18 PM', '05:33 PM'], saturday: ['07:18 AM', '12:18 PM'], sunday: [] } 
-                    }
-                ]
-            },
-            'hilo-volcano': {
-                name: 'Route 11: Hilo to Volcano',
-                stops: [
-                    { 
-                        name: "Mo'oheau Bus Terminal", stop_id: 1, stop_code: 100, type: 'Terminal hub[cite: 4]', lat: 19.724013, lng: -155.084657, 
-                        schedule: { weekday: ['04:45 AM', '07:00 AM', '11:00 AM', '02:30 PM', '05:30 PM'], saturday: ['06:00 AM', '10:30 AM', '03:30 PM'], sunday: ['07:00 AM', '01:00 PM'] } 
-                    },
-                    { 
-                        name: "Kurtistown Park / Hwy 11", stop_id: 13, stop_code: 903, type: 'Flag stop[cite: 4]', lat: 19.591883, lng: -155.059193, 
-                        schedule: { weekday: ['05:15 AM', '07:30 AM', '11:30 AM', '03:00 PM', '06:00 PM'], saturday: ['06:30 AM', '11:00 AM', '04:00 PM'], sunday: ['07:30 AM', '01:30 PM'] } 
-                    },
-                    { 
-                        name: "Mountain View (Frankie's)", stop_id: 14, stop_code: 911, type: 'Roadside flag stop[cite: 4]', lat: 19.551349, lng: -155.106792, 
-                        schedule: { weekday: ['05:30 AM', '07:45 AM', '11:45 AM', '03:15 PM', '06:15 PM'], saturday: ['06:45 AM', '11:15 AM', '04:15 PM'], sunday: ['07:45 AM', '01:45 PM'] } 
-                    },
-                    { 
-                        name: "Volcano Village Post Office", stop_id: 17, stop_code: 916, type: 'Flag stop[cite: 4]', lat: 19.427889, lng: -155.236028, 
-                        schedule: { weekday: ['05:55 AM', '08:10 AM', '12:10 PM', '03:40 PM', '06:40 PM'], saturday: ['07:10 AM', '11:40 AM', '04:40 PM'], sunday: ['08:10 AM', '02:10 PM'] } 
-                    },
-                    { 
-                        name: "HVNP Visitors Center", stop_id: 19, stop_code: 809, type: 'Park flag stop[cite: 4]', lat: 19.429472, lng: -155.257306, 
-                        schedule: { weekday: ['06:05 AM', '08:20 AM', '12:20 PM', '03:50 PM', '06:50 PM'], saturday: ['07:20 AM', '11:50 AM', '04:50 PM'], sunday: ['08:20 AM', '02:20 PM'] } 
-                    }
-                ]
-            },
-            'hilo-kona': {
-                name: 'Route 1: Hilo to Kona',
-                stops: [
-                    { 
-                        name: "Mo'oheau Bus Terminal", stop_id: 1, stop_code: 100, type: 'Terminal hub[cite: 4]', lat: 19.724013, lng: -155.084657, 
-                        schedule: { weekday: ['04:30 AM', '08:00 AM', '01:00 PM'], saturday: ['05:30 AM', '11:00 AM'], sunday: ['06:00 AM', '12:00 PM'] } 
-                    },
-                    { 
-                        name: "Waimea Parker Ranch Center", stop_id: 36, stop_code: 422, type: 'Bus shelter[cite: 4]', lat: 20.021564, lng: -155.665946, 
-                        schedule: { weekday: ['05:45 AM', '09:15 AM', '02:15 PM'], saturday: ['06:45 AM', '12:15 PM'], sunday: ['07:15 AM', '01:15 PM'] } 
-                    },
-                    { 
-                        name: "Kona Courtyard Marriott / Palani", stop_id: 80, stop_code: 650, type: 'Southbound stop[cite: 4]', lat: 19.640312, lng: -155.996855, 
-                        schedule: { weekday: ['07:45 AM', '11:15 AM', '04:15 PM'], saturday: ['08:45 AM', '02:15 PM'], sunday: ['09:15 AM', '03:15 PM'] } 
-                    }
-                ]
-            },
-            'hilo-pahoa': {
-                name: 'Route 40: Hilo to Pahoa',
-                stops: [
-                    { 
-                        name: "Mo'oheau Bus Terminal", stop_id: 1, stop_code: 100, type: 'Terminal hub[cite: 4]', lat: 19.724013, lng: -155.084657, 
-                        schedule: { weekday: ['06:15 AM', '09:30 AM', '12:30 PM', '03:45 PM'], saturday: ['07:30 AM', '01:00 PM'], sunday: [] } 
-                    },
-                    { 
-                        name: "Kea'au Village Hub / Post Office", stop_id: 25, stop_code: 924, type: 'Hub stop[cite: 4]', lat: 19.621512, lng: -155.039946, 
-                        schedule: { weekday: ['06:40 AM', '09:55 AM', '12:55 PM', '04:10 PM'], saturday: ['07:55 AM', '01:25 PM'], sunday: [] } 
-                    }
-                ]
-            }
+        let gtfsData = {
+            routes: {}, // route_id -> route name
+            trips: {},  // trip_id -> { route_id, service_id }
+            stops: {},  // stop_id -> { name, lat, lng, code }
+            stopTimes: {} // trip_id -> [{ stop_id, arrival_time }]
         };
 
-        // Auto-select current day of week on initial page load
-        function initDaySelector() {
-            const daySelect = document.getElementById('day-select');
-            const jsDay = new Date().getDay(); // 0 is Sunday, 6 is Saturday
-            if (jsDay === 0) {
-                daySelect.value = 'sunday';
-            } else if (jsDay === 6) {
-                daySelect.value = 'saturday';
-            } else {
-                daySelect.value = 'weekday';
+        // Simple robust CSV parser handling quotes and commas
+        function parseCSV(text) {
+            let lines = text.trim().split(/\r\n|\n/);
+            if (lines.length === 0) return [];
+            let headers = parseCSVLine(lines[0]);
+            let result = [];
+            for (let i = 1; i < lines.length; i++) {
+                let data = parseCSVLine(lines[i]);
+                if (data.length === headers.length) {
+                    let obj = {};
+                    for (let j = 0; j < headers.length; j++) {
+                        obj[headers[j]] = data[j];
+                    }
+                    result.push(obj);
+                }
+            }
+            return result;
+        }
+
+        function parseCSVLine(line) {
+            let res = [];
+            let current = '';
+            let inQuotes = false;
+            for (let i = 0; i < line.length; i++) {
+                let char = line[i];
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    res.push(current.trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            res.push(current.trim());
+            return res;
+        }
+
+        // Load and parse GTFS text files stored in the same local directory
+        async function loadGTFSData() {
+            try {
+                const [routesText, stopsText, tripsText, stopTimesText] = await Promise.all([
+                    fetch('routes.txt').then(r => r.text()),
+                    fetch('stops.txt').then(r => r.text()),
+                    fetch('trips.txt').then(r => r.text()),
+                    fetch('stop_times.txt').then(r => r.text())
+                ]);
+
+                // Parse Routes
+                parseCSV(routesText).forEach(row => {
+                    let rId = row.route_id;
+                    let rName = row.route_short_name ? `${row.route_short_name}: ${row.route_long_name}` : row.route_long_name;
+                    gtfsData.routes[rId] = rName;
+                });
+
+                // Parse Stops
+                parseCSV(stopsText).forEach(row => {
+                    gtfsData.stops[row.stop_id] = {
+                        name: row.stop_name,
+                        lat: parseFloat(row.stop_lat),
+                        lng: parseFloat(row.stop_lon),
+                        code: row.stop_code || row.stop_id
+                    };
+                });
+
+                // Parse Trips
+                parseCSV(tripsText).forEach(row => {
+                    gtfsData.trips[row.trip_id] = {
+                        route_id: row.route_id,
+                        service_id: row.service_id
+                    };
+                });
+
+                // Parse Stop Times
+                parseCSV(stopTimesText).forEach(row => {
+                    if (!gtfsData.stopTimes[row.trip_id]) {
+                        gtfsData.stopTimes[row.trip_id] = [];
+                    }
+                    gtfsData.stopTimes[row.trip_id].push({
+                        stop_id: row.stop_id,
+                        time: row.arrival_time || row.departure_time
+                    });
+                });
+
+                populateRouteDropdown();
+            } catch (err) {
+                console.error("Error loading GTFS files:", err);
+                document.getElementById('route-select').innerHTML = '<option>Error: Place GTFS .txt files in folder</option>';
             }
         }
 
-        function updateDisplay() {
-            const routeId = document.getElementById('route-select').value;
-            const selectedDay = document.getElementById('day-select').value;
-            const routeData = networkDatabase[routeId];
+        function populateRouteDropdown() {
+            const select = document.getElementById('route-select');
+            select.innerHTML = '';
             
+            let sortedRoutes = Object.keys(gtfsData.routes).map(id => ({ id, name: gtfsData.routes[id] }));
+            sortedRoutes.sort((a, b) => a.name.localeCompare(b.name));
+
+            sortedRoutes.forEach(r => {
+                let opt = document.createElement('option');
+                opt.value = r.id;
+                opt.textContent = r.name;
+                select.appendChild(opt);
+            });
+
+            // Auto-select current day in dropdown
+            const jsDay = new Date().getDay();
+            document.getElementById('day-select').value = (jsDay === 0) ? 'sunday' : (jsDay === 6) ? 'saturday' : 'weekday';
+
+            if (sortedRoutes.length > 0) {
+                renderRoute();
+            }
+        }
+
+        function renderRoute() {
+            const routeId = document.getElementById('route-select').value;
+            const dayType = document.getElementById('day-select').value;
             markersLayer.clearLayers();
-            if (!routeData) return;
+            if (!routeId) return;
+
+            // Find all unique stops used by trips matching this route and day type
+            let activeStopsMap = {}; // stop_id -> Set of times
+
+            Object.keys(gtfsData.trips).forEach(tripId => {
+                let trip = gtfsData.trips[tripId];
+                if (trip.route_id === routeId) {
+                    // Simple heuristic matching service_id strings for weekdays/weekends
+                    let sId = trip.service_id.toLowerCase();
+                    let isMatch = false;
+                    if (dayType === 'weekday' && (sId.includes('week') || sId.includes('mon') || sId.includes('wd'))) isMatch = true;
+                    if (dayType === 'saturday' && (sId.includes('sat') || sId.includes('we'))) isMatch = true;
+                    if (dayType === 'sunday' && (sId.includes('sun') || sId.includes('hol') || sId.includes('we'))) isMatch = true;
+                    // Fallback if service naming scheme doesn't match standard abbreviations
+                    if (!isMatch && Object.keys(gtfsData.trips).length < 500) isMatch = true; 
+
+                    if (isMatch && gtfsData.stopTimes[tripId]) {
+                        gtfsData.stopTimes[tripId].forEach(st => {
+                            if (!activeStopsMap[st.stop_id]) {
+                                activeStopsMap[st.stop_id] = new Set();
+                            }
+                            if (st.time) activeStopsMap[st.stop_id].add(st.time.substring(0, 5)); // HH:MM format
+                        });
+                    }
+                }
+            });
 
             let latLngs = [];
 
-            routeData.stops.forEach((stop, index) => {
-                latLngs.push([stop.lat, stop.lng]);
+            Object.keys(activeStopsMap).forEach(stopId => {
+                let stopInfo = gtfsData.stops[stopId];
+                if (stopInfo && !isNaN(stopInfo.lat) && !isNaN(stopInfo.lng)) {
+                    latLngs.push([stopInfo.lat, stopInfo.lng]);
 
-                let stopMeta = '';
-                if (stop.stop_id) stopMeta += `Stop ID: ${stop.stop_id} `;
-                if (stop.stop_code) stopMeta += `(Code: ${stop.stop_code}) `;
-                if (stop.type) stopMeta += `<br>${stop.type}`;
+                    let timesArr = Array.from(activeStopsMap[stopId]).sort();
+                    let timesHtml = timesArr.length > 0 ? 
+                        '<div class="popup-times-title">Times:</div><ul class="popup-times-list">' + timesArr.map(t => `<li>${t}</li>`).join('') + '</ul>' : 
+                        '<div class="popup-times-title">Times:</div><p class="no-service">No times listed.</p>';
 
-                // Extract schedule times for the chosen day dropdown option
-                let timesList = stop.schedule[selectedDay] || [];
-                let timesHtml = '';
-                if (timesList.length > 0) {
-                    timesHtml = '<div class="popup-times-title">Times (' + selectedDay.toUpperCase() + '):</div><ul class="popup-times-list">' + 
-                                timesList.map(t => `<li>${t}</li>`).join('') + '</ul>';
-                } else {
-                    timesHtml = '<div class="popup-times-title">Times (' + selectedDay.toUpperCase() + '):</div><p class="no-service">No service scheduled.</p>';
+                    let popupContent = `
+                        <span class="popup-stop-name">${stopInfo.name}</span>
+                        <div class="popup-stop-meta">Stop Code: ${stopInfo.code}</div>
+                        ${timesHtml}
+                    `;
+
+                    let smallIcon = L.icon({
+                        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+                        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+                        iconSize: [12, 20],
+                        iconAnchor: [6, 20],
+                        popupAnchor: [0, -15],
+                        shadowSize: [20, 20]
+                    });
+
+                    let marker = L.marker([stopInfo.lat, stopInfo.lng], { icon: smallIcon }).bindPopup(popupContent);
+                    markersLayer.addLayer(marker);
                 }
-
-                let popupContent = `
-                    <span class="popup-stop-name">${index + 1}. ${stop.name}</span>
-                    <div class="popup-stop-meta">${stopMeta}</div>
-                    ${timesHtml}
-                `;
-
-                // Small marker icon scaled for mobile screens
-                let smallIcon = L.icon({
-                    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-                    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-                    iconSize: [12, 20],
-                    iconAnchor: [6, 20],
-                    popupAnchor: [0, -15],
-                    shadowSize: [20, 20]
-                });
-
-                let marker = L.marker([stop.lat, stop.lng], { icon: smallIcon }).bindPopup(popupContent);
-                markersLayer.addLayer(marker);
             });
 
             if (latLngs.length > 0) {
@@ -218,25 +253,17 @@
             navigator.geolocation.watchPosition(position => {
                 const userLat = position.coords.latitude;
                 const userLng = position.coords.longitude;
-
                 if (!userMarker) {
-                    let userIcon = L.divIcon({
-                        className: 'user-loc-dot',
-                        iconSize: [10, 10],
-                        iconAnchor: [5, 5]
-                    });
+                    let userIcon = L.divIcon({ className: 'user-loc-dot', iconSize: [10, 10], iconAnchor: [5, 5] });
                     userMarker = L.marker([userLat, userLng], { icon: userIcon }).addTo(map).bindPopup("<b>You are here</b>");
                 } else {
                     userMarker.setLatLng([userLat, userLng]);
                 }
-            }, error => {
-                console.log("GPS Location unavailable: ", error.message);
-            }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 });
+            }, null, { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 });
         }
 
-        // Run initialization on load
-        initDaySelector();
-        updateDisplay();
+        // Kick off loading process
+        loadGTFSData();
     </script>
 </body>
 </html>
