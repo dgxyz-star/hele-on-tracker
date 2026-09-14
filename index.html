@@ -14,11 +14,11 @@
         header.collapsed { transform: translateY(-100%); position: absolute; width: 100%; pointer-events: none; }
         header.collapsed .toggle-btn { pointer-events: auto; }
 
-        .header-top { display: flex; align-items: center; gap: 8px; position: relative; }
+        .header-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; position: relative; }
         h1 { font-size: 0.85rem; color: #38bdf8; text-align: left; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 2px; }
         
-        /* Unified toggle/hide button styled for the left side */
-        .toggle-btn { background: #334155; color: #38bdf8; border: 1px solid #475569; border-radius: 4px; padding: 3px 7px; font-size: 0.75rem; font-weight: bold; cursor: pointer; flex-shrink: 0; }
+        /* Arrow toggle button on the right */
+        .toggle-btn { background: #334155; color: #38bdf8; border: 1px solid #475569; border-radius: 4px; padding: 4px 10px; font-size: 0.8rem; font-weight: bold; cursor: pointer; flex-shrink: 0; }
 
         .controls-row { display: flex; gap: 4px; width: 100%; min-width: 0; }
         
@@ -27,8 +27,8 @@
         
         #map { flex: 1; width: 100%; background: #0f172a; z-index: 1; }
         
-        /* Floating handle perfectly aligned to the top-left spot */
-        .floating-toggle-btn { position: absolute; top: 6px; left: 8px; z-index: 1001; background: #1e293b; color: #38bdf8; border: 1px solid #475569; border-radius: 4px; padding: 4px 8px; font-size: 0.75rem; font-weight: bold; display: none; box-shadow: 0 2px 6px rgba(0,0,0,0.5); cursor: pointer; }
+        /* Floating arrow button positioned on the top-right to keep map zoom buttons free */
+        .floating-toggle-btn { position: absolute; top: 6px; right: 8px; z-index: 1001; background: #1e293b; color: #38bdf8; border: 1px solid #475569; border-radius: 4px; padding: 6px 12px; font-size: 0.8rem; font-weight: bold; display: none; box-shadow: 0 2px 6px rgba(0,0,0,0.5); cursor: pointer; }
         body.header-is-collapsed .floating-toggle-btn { display: block; }
 
         /* Popup Styling */
@@ -46,14 +46,14 @@
 </head>
 <body>
 
-    <!-- Floating button on the left when collapsed -->
-    <button class="floating-toggle-btn" onclick="toggleHeader()">▼ Controls</button>
+    <!-- Floating arrow button on the right when collapsed -->
+    <button class="floating-toggle-btn" onclick="toggleHeader()">▼</button>
 
     <header id="main-header">
         <div class="header-top">
-            <!-- Hide button on the left when expanded -->
-            <button class="toggle-btn" onclick="toggleHeader()">▲ Hide</button>
             <h1>Hele-On GTFS Viewer</h1>
+            <!-- Arrow button on the right when expanded -->
+            <button class="toggle-btn" onclick="toggleHeader()">▲</button>
         </div>
         <div class="controls-row">
             <div class="select-wrapper">
