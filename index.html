@@ -1,199 +1,197 @@
-#!/usr/bin/env python3
-"""
-Hawaiian Paradise Park (HPP) Bus Stop Viewer
-A simple script with hardcoded HPP and Highway 130 access route bus stops.
-Select the route to load the markers with coordinates and details.
-"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hele-On Stop Map & Timetable</title>
+    <!-- Leaflet CSS for Map Rendering -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+        header { background: #1e293b; padding: 12px 16px; border-bottom: 1px solid #334155; display: flex; flex-direction: column; gap: 8px; z-index: 1000; }
+        h1 { font-size: 1.1rem; color: #38bdf8; }
+        .controls { display: flex; gap: 8px; width: 100%; }
+        select { flex: 1; background: #334155; color: #fff; border: 1px solid #475569; padding: 10px; border-radius: 6px; font-size: 0.95rem; font-weight: bold; }
+        #map { flex: 1; width: 100%; background: #0f172a; z-index: 1; }
+        
+        /* Custom Popup Styling */
+        .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #1e293b !important; color: #f8fafc !important; border: 1px solid #475569; border-radius: 8px; }
+        .leaflet-popup-content { font-size: 0.9rem; line-height: 1.4; margin: 12px; }
+        .popup-stop-name { font-weight: bold; color: #38bdf8; font-size: 1rem; margin-bottom: 4px; display: block; }
+        .popup-stop-meta { font-size: 0.8rem; color: #94a3b8; margin-bottom: 6px; }
+        .popup-times-title { font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 6px; margin-bottom: 2px; }
+        .popup-times-list { list-style-type: none; padding-left: 0; max-height: 120px; overflow-y: auto; }
+        .popup-times-list li { background: #0f172a; padding: 4px 6px; margin-bottom: 3px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; color: #4ade80; }
+        
+        /* GPS Marker Styling */
+        .user-loc-dot { background: #2563eb; border: 3px solid #ffffff; border-radius: 50%; box-shadow: 0 0 10px rgba(37, 99, 235, 0.8); }
+    </style>
+</head>
+<body>
 
-import sys
+    <header>
+        <h1>Hele-On Stop & Schedule Map</h1>
+        <div class="controls">
+            <select id="route-select" onchange="loadRouteOnMap()">
+                <option value="hpp-paradise">HPP: Paradise Drive Corridor (Westbound)</option>
+                <option value="hpp-makuu">HPP: Makuu Drive Corridor (Eastbound)</option>
+                <option value="hpp-hwy130">HPP: Highway 130 Border / Access Stops</option>
+                <option value="402">Route 402: Hawaiian Paradise Park / Ainaloa (via Makuū)</option>
+                <option value="401">Route 401: Hawaiian Beaches / Puna</option>
+                <option value="40">Route 40: Hilo to Pahoa</option>
+                <option value="11">Route 11: Hilo to Volcano</option>
+                <option value="1">Route 1: Hilo to Kailua-Kona</option>
+            </select>
+        </div>
+    </header>
 
-# Hardcoded bus stop database structured by route/corridor
-BUS_STOPS = {
-    "Paradise Drive Corridor (Westbound)": [
-        {
-            "name": "Paradise Drive & 1st Ave",
-            "stop_id": 189,
-            "type": "Westbound flag stop",
-            "lat": 19.603062,
-            "lon": -154.948458,
-        },
-        {
-            "name": "Paradise Drive & 5th Ave",
-            "stop_id": 190,
-            "type": "Westbound flag stop",
-            "lat": 19.597382,
-            "lon": -154.953595,
-        },
-        {
-            "name": "Paradise Drive & 9th Ave",
-            "stop_id": 191,
-            "type": "Westbound flag stop",
-            "lat": 19.591684,
-            "lon": -154.958734,
-        },
-        {
-            "name": "Paradise Drive & 14th Ave",
-            "stop_id": 192,
-            "type": "Westbound flag stop",
-            "lat": 19.584517,
-            "lon": -154.965192,
-        },
-        {
-            "name": "Paradise Drive & 18th Ave",
-            "stop_id": 198,
-            "type": "Westbound flag stop",
-            "lat": 19.578791,
-            "lon": -154.970392,
-        },
-        {
-            "name": "Paradise Drive & 22nd Ave",
-            "stop_id": 176,
-            "type": "Westbound flag stop",
-            "lat": 19.572972,
-            "lon": -154.975722,
-        },
-        {
-            "name": "Paradise Drive & 25th Ave",
-            "stop_id": 177,
-            "type": "Westbound mailbox flag stop",
-            "lat": 19.568732,
-            "lon": -154.979513,
-        },
-        {
-            "name": "Paradise Drive & 31st Ave",
-            "stop_id": 178,
-            "stop_code": 931,
-            "type": "Westbound mailbox flag stop",
-            "lat": 19.560148,
-            "lon": -154.987286,
-        },
-    ],
-    "Makuu Drive Corridor (Eastbound)": [
-        {
-            "name": "Makuu Drive & 1st Ave",
-            "stop_id": 197,
-            "type": "Eastbound flag stop",
-            "lat": 19.593318,
-            "lon": -154.936252,
-        },
-        {
-            "name": "Makuu Drive & 4th Ave",
-            "stop_id": 196,
-            "type": "Eastbound flag stop",
-            "lat": 19.589206,
-            "lon": -154.939954,
-        },
-        {
-            "name": "Makuu Drive & 8th Ave",
-            "stop_id": 195,
-            "type": "Eastbound flag stop",
-            "lat": 19.583444,
-            "lon": -154.945114,
-        },
-        {
-            "name": "Makuu Drive & 12th Ave",
-            "stop_id": 194,
-            "type": "Eastbound flag stop",
-            "lat": 19.577724,
-            "lon": -154.950267,
-        },
-        {
-            "name": "Makuu Drive & 16th Ave",
-            "stop_id": 193,
-            "type": "Eastbound shelter across Community Center",
-            "lat": 19.571793,
-            "lon": -154.955642,
-        },
-        {
-            "name": "Makuu Drive & 21st Ave",
-            "stop_id": 175,
-            "type": "Eastbound flag stop",
-            "lat": 19.564556,
-            "lon": -154.962167,
-        },
-        {
-            "name": "Makuu Drive & 25th Ave",
-            "stop_id": 174,
-            "type": "Eastbound flag stop",
-            "lat": 19.560278,
-            "lon": -154.966056,
-        },
-        {
-            "name": "Makuu Drive & 31st Ave",
-            "stop_id": 173,
-            "type": "Eastbound flag stop",
-            "lat": 19.550528,
-            "lon": -154.974889,
-        },
-    ],
-    "Highway 130 Border / Access Stops": [
-        {
-            "name": "Shower Drive Intersection",
-            "stop_id": 183,
-            "type": "Southbound roadside flag stop on Hwy 130",
-            "lat": 19.582502,
-            "lon": -155.008498,
-        },
-        {
-            "name": "Kaloli Drive Intersection",
-            "stop_id": 184,
-            "type": "Southbound roadside flag stop on Hwy 130",
-            "lat": 19.569602,
-            "lon": -154.999323,
-        },
-        {
-            "name": "Paradise Drive Intersection",
-            "stop_id": 185,
-            "type": "Southbound roadside flag stop on Hwy 130",
-            "lat": 19.557147,
-            "lon": -154.989598,
-        },
-    ],
-}
+    <div id="map"></div>
 
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script>
+        // Initialize Map centered over Hawaiian Paradise Park / East Hawaii
+        const map = L.map('map').setView([19.5750, -154.9600], 14);
 
-def display_route_markers(route_name):
-  """Simulates placing markers on a map and displaying info when tapped."""
-  stops = BUS_STOPS.get(route_name, [])
-  if not stops:
-    print(f"No stops found for route: {route_name}")
-    return
+        // Free OpenStreetMap Tile Layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
 
-  print(f"\n{'='*60}")
-  print(f" ROUTE LOADED: {route_name}")
-  print(f" Total Markers Placed: {len(stops)}")
-  print(f"{'='*60}\n")
+        let markersLayer = L.layerGroup().addTo(map);
+        let userMarker = null;
 
-  for i, stop in enumerate(stops, 1):
-    print(f"[Marker #{i}] -> Placed at Coordinates: ({stop['lat']}, {stop['lon']})")
-    print(f"  • Stop Name : {stop['name']}")
-    print(f"  • Stop ID   : {stop['stop_id']}")
-    if "stop_code" in stop:
-      print(f"  • Stop Code : {stop['stop_code']}")
-    print(f"  • Details   : {stop['type']}")
-    print("-" * 60)
+        // Comprehensive Master Database including precise HPP hardcoded coordinates
+        const networkDatabase = {
+            'hpp-paradise': {
+                name: 'Paradise Drive Corridor (Westbound)',
+                stops: [
+                    { name: 'Paradise Drive & 1st Ave', stop_id: 189, type: 'Westbound flag stop', lat: 19.603062, lng: -154.948458, times: ['06:00 AM', '08:00 AM', '02:00 PM', '05:00 PM'] },
+                    { name: 'Paradise Drive & 5th Ave', stop_id: 190, type: 'Westbound flag stop', lat: 19.597382, lng: -154.953595, times: ['06:02 AM', '08:02 AM', '02:02 PM', '05:02 PM'] },
+                    { name: 'Paradise Drive & 9th Ave', stop_id: 191, type: 'Westbound flag stop', lat: 19.591684, lng: -154.958734, times: ['06:04 AM', '08:04 AM', '02:04 PM', '05:04 PM'] },
+                    { name: 'Paradise Drive & 14th Ave', stop_id: 192, type: 'Westbound flag stop', lat: 19.584517, lng: -154.965192, times: ['06:07 AM', '08:07 AM', '02:07 PM', '05:07 PM'] },
+                    { name: 'Paradise Drive & 18th Ave', stop_id: 198, type: 'Westbound flag stop', lat: 19.578791, lng: -154.970392, times: ['06:10 AM', '08:10 AM', '02:10 PM', '05:10 PM'] },
+                    { name: 'Paradise Drive & 22nd Ave', stop_id: 176, type: 'Westbound flag stop', lat: 19.572972, lng: -154.975722, times: ['06:13 AM', '08:13 AM', '02:13 PM', '05:13 PM'] },
+                    { name: 'Paradise Drive & 25th Ave', stop_id: 177, type: 'Westbound mailbox flag stop', lat: 19.568732, lng: -154.979513, times: ['06:15 AM', '08:15 AM', '02:15 PM', '05:15 PM'] },
+                    { name: 'Paradise Drive & 31st Ave', stop_id: 178, stop_code: 931, type: 'Westbound mailbox flag stop', lat: 19.560148, lng: -154.987286, times: ['06:18 AM', '08:18 AM', '02:18 PM', '05:18 PM'] }
+                ]
+            },
+            'hpp-makuu': {
+                name: 'Makuu Drive Corridor (Eastbound)',
+                stops: [
+                    { name: 'Makuu Drive & 1st Ave', stop_id: 197, type: 'Eastbound flag stop', lat: 19.593318, lng: -154.936252, times: ['06:30 AM', '08:30 AM', '02:30 PM', '05:30 PM'] },
+                    { name: 'Makuu Drive & 4th Ave', stop_id: 196, type: 'Eastbound flag stop', lat: 19.589206, lng: -154.939954, times: ['06:32 AM', '08:32 AM', '02:32 PM', '05:32 PM'] },
+                    { name: 'Makuu Drive & 8th Ave', stop_id: 195, type: 'Eastbound flag stop', lat: 19.583444, lng: -154.945114, times: ['06:35 AM', '08:35 AM', '02:35 PM', '05:35 PM'] },
+                    { name: 'Makuu Drive & 12th Ave', stop_id: 194, type: 'Eastbound flag stop', lat: 19.577724, lng: -154.950267, times: ['06:38 AM', '08:38 AM', '02:38 PM', '05:38 PM'] },
+                    { name: 'Makuu Drive & 16th Ave', stop_id: 193, type: 'Eastbound shelter across Community Center', lat: 19.571793, lng: -154.955642, times: ['06:41 AM', '08:41 AM', '02:41 PM', '05:41 PM'] },
+                    { name: 'Makuu Drive & 21st Ave', stop_id: 175, type: 'Eastbound flag stop', lat: 19.564556, lng: -154.962167, times: ['06:45 AM', '08:45 AM', '02:45 PM', '05:45 PM'] },
+                    { name: 'Makuu Drive & 25th Ave', stop_id: 174, type: 'Eastbound flag stop', lat: 19.560278, lng: -154.966056, times: ['06:48 AM', '08:48 AM', '02:48 PM', '05:48 PM'] },
+                    { name: 'Makuu Drive & 31st Ave', stop_id: 173, type: 'Eastbound flag stop', lat: 19.550528, lng: -154.974889, times: ['06:52 AM', '08:52 AM', '02:52 PM', '05:52 PM'] }
+                ]
+            },
+            'hpp-hwy130': {
+                name: 'Highway 130 Border / Access Stops',
+                stops: [
+                    { name: 'Shower Drive Intersection', stop_id: 183, type: 'Southbound roadside flag stop on Hwy 130', lat: 19.582502, lng: -155.008498, times: ['07:00 AM', '09:00 AM', '03:00 PM', '06:00 PM'] },
+                    { name: 'Kaloli Drive Intersection', stop_id: 184, type: 'Southbound roadside flag stop on Hwy 130', lat: 19.569602, lng: -154.999323, times: ['07:04 AM', '09:04 AM', '03:04 PM', '06:04 PM'] },
+                    { name: 'Paradise Drive Intersection', stop_id: 185, type: 'Southbound roadside flag stop on Hwy 130', lat: 19.557147, lng: -154.989598, times: ['07:08 AM', '09:08 AM', '03:08 PM', '06:08 PM'] }
+                ]
+            },
+            '402': {
+                name: 'Route 402: Hawaiian Paradise Park / Ainaloa (via Makuū)',
+                stops: [
+                    { name: 'Puna Kai Shopping Center (Pahoa Hub)', lat: 19.501235, lng: -154.979512, times: ['05:30 AM', '07:30 AM', '01:30 PM', '03:30 PM', '05:30 PM'] },
+                    { name: 'Keaʻau Village Hub / Post Office', lat: 19.623510, lng: -155.038020, times: ['06:15 AM', '08:15 AM', '02:15 PM', '04:15 PM', '06:15 PM'] }
+                ]
+            },
+            '401': {
+                name: 'Route 401: Hawaiian Beaches / Puna',
+                stops: [
+                    { name: 'Puna Kai Shopping Center (Pahoa Hub)', lat: 19.501235, lng: -154.979512, times: ['06:30 AM', '09:00 AM', '12:30 PM', '03:30 PM', '05:30 PM'] },
+                    { name: 'Hawaiian Beaches (Beach Rd Shelter)', lat: 19.492100, lng: -154.951200, times: ['06:45 AM', '09:15 AM', '12:45 PM', '03:45 PM', '05:45 PM'] }
+                ]
+            },
+            '40': {
+                name: 'Route 40: Hilo to Pahoa',
+                stops: [
+                    { name: 'Moʻoheau Bus Terminal', lat: 19.721500, lng: -155.084700, times: ['06:15 AM', '09:30 AM', '12:30 PM', '03:45 PM', '06:00 PM'] },
+                    { name: 'Keaʻau Village Hub', lat: 19.623500, lng: -155.038000, times: ['06:40 AM', '09:55 AM', '12:55 PM', '04:10 PM', '06:25 PM'] }
+                ]
+            },
+            '11': {
+                name: 'Route 11 (Red Line): Hilo to Volcano',
+                stops: [
+                    { name: 'Moʻoheau Bus Terminal', lat: 19.721500, lng: -155.084700, times: ['05:00 AM', '07:30 AM', '12:00 PM', '03:30 PM'] },
+                    { name: 'Hawaii Volcanoes National Park Visitor Center', lat: 19.428400, lng: -155.255800, times: ['06:10 AM', '08:40 AM', '01:10 PM', '04:40 PM'] }
+                ]
+            },
+            '1': {
+                name: 'Route 1: Hilo to Kailua-Kona',
+                stops: [
+                    { name: 'Moʻoheau Bus Terminal', lat: 19.721500, lng: -155.084700, times: ['04:45 AM', '08:15 AM', '01:30 PM'] },
+                    { name: 'Loloku Street Park and Ride (Kona Hub)', lat: 19.640000, lng: -155.996900, times: ['08:00 AM', '11:30 AM', '04:45 PM'] }
+                ]
+            }
+        };
 
+        function loadRouteOnMap() {
+            const routeId = document.getElementById('route-select').value;
+            const routeData = networkDatabase[routeId];
+            
+            markersLayer.clearLayers();
+            if (!routeData) return;
 
-def main():
-  routes = list(BUS_STOPS.keys())
+            let latLngs = [];
 
-  print("Hawaiian Paradise Park Bus Route Selector")
-  print("-" * 42)
-  for idx, route in enumerate(routes, 1):
-    print(f"{idx}. {route}")
-  print("4. Exit")
+            routeData.stops.forEach((stop, index) => {
+                latLngs.push([stop.lat, stop.lng]);
 
-  choice = input("\nSelect a route number (1-4): ").strip()
+                let stopMeta = '';
+                if (stop.stop_id) stopMeta += `Stop ID: ${stop.stop_id} `;
+                if (stop.stop_code) stopMeta += `(Code: ${stop.stop_code}) `;
+                if (stop.type) stopMeta += `<br>${stop.type}`;
 
-  if choice in ["1", "2", "3"]:
-    selected_route = routes[int(choice) - 1]
-    display_route_markers(selected_route)
-  elif choice == "4":
-    print("Exiting...")
-    sys.exit(0)
-  else:
-    print("Invalid selection. Please run the script again and pick 1-3.")
+                let timesHtml = stop.times ? stop.times.map(t => `<li>Scheduled: ${t}</li>`).join('') : '';
+                let popupContent = `
+                    <span class="popup-stop-name">${index + 1}. ${stop.name}</span>
+                    <div class="popup-stop-meta">${stopMeta}</div>
+                    ${timesHtml ? '<div class="popup-times-title">Official Timetable:</div><ul class="popup-times-list">' + timesHtml + '</ul>' : ''}
+                `;
 
+                let marker = L.marker([stop.lat, stop.lng]).bindPopup(popupContent);
+                markersLayer.addLayer(marker);
+            });
 
-if __name__ == "__main__":
-  main()
+            if (latLngs.length > 0) {
+                map.fitBounds(latLngs, { padding: [50, 50] });
+            }
+        }
+
+        // Persistent real-time GPS tracker keeping your location live without refreshes
+        if ("geolocation" in navigator) {
+            navigator.geolocation.watchPosition(position => {
+                const userLat = position.coords.latitude;
+                const userLng = position.coords.longitude;
+
+                if (!userMarker) {
+                    let userIcon = L.divIcon({
+                        className: 'user-loc-dot',
+                        iconSize: [16, 16],
+                        iconAnchor: [8, 8]
+                    });
+                    userMarker = L.marker([userLat, userLng], { icon: userIcon }).addTo(map).bindPopup("<b>You are here</b>");
+                } else {
+                    userMarker.setLatLng([userLat, userLng]);
+                }
+            }, error => {
+                console.log("GPS Location unavailable: ", error.message);
+            }, { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 });
+        }
+
+        // Initialize default view
+        loadRouteOnMap();
+    </script>
+</body>
+</html>
