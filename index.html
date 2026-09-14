@@ -8,15 +8,29 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; display: flex; flex-direction: column; height: 100vh; height: 100dvh; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }
         
-        header { background: #1e293b; padding: 6px 8px; border-bottom: 1px solid #334155; display: flex; flex-direction: column; gap: 4px; z-index: 1000; }
-        h1 { font-size: 0.9rem; color: #38bdf8; text-align: center; }
-        .controls-row { display: flex; gap: 4px; width: 100%; }
-        select { flex: 1; background: #334155; color: #fff; border: 1px solid #475569; padding: 5px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+        header { background: #1e293b; padding: 6px 8px; border-bottom: 1px solid #334155; display: flex; flex-direction: column; gap: 4px; z-index: 1000; transition: transform 0.3s ease; }
+        header.collapsed { transform: translateY(-100%); position: absolute; width: 100%; pointer-events: none; }
+        header.collapsed .toggle-btn { pointer-events: auto; }
+
+        .header-top { display: flex; align-items: center; justify-content: space-between; }
+        h1 { font-size: 0.9rem; color: #38bdf8; text-align: center; flex: 1; }
+        
+        .toggle-btn { background: #334155; color: #38bdf8; border: 1px solid #475569; border-radius: 4px; padding: 2px 8px; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
+
+        .controls-row { display: flex; gap: 4px; width: 100%; min-width: 0; }
+        
+        /* min-width: 0 keeps flex items from overflowing off-screen */
+        .select-wrapper { flex: 1; min-width: 0; position: relative; }
+        select { width: 100%; min-width: 0; background: #334155; color: #fff; border: 1px solid #475569; padding: 5px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
         
         #map { flex: 1; width: 100%; background: #0f172a; z-index: 1; }
         
+        /* Floating handle when header is collapsed */
+        .floating-show-btn { position: absolute; top: 10px; left: 10px; z-index: 1001; background: #1e293b; color: #38bdf8; border: 1px solid #475569; border-radius: 4px; padding: 6px 10px; font-size: 0.8rem; font-weight: bold; display: none; box-shadow: 0 2px 6px rgba(0,0,0,0.5); }
+        body.header-is-collapsed .floating-show-btn { display: block; }
+
         /* Popup Styling */
         .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #1e293b !important; color: #f8fafc !important; border: 1px solid #475569; border-radius: 6px; }
         .leaflet-popup-content { font-size: 0.75rem; line-height: 1.3; margin: 8px; }
@@ -32,15 +46,24 @@
 </head>
 <body>
 
-    <header>
-        <h1>Hele-On GTFS Viewer</h1>
+    <button class="floating-show-btn" onclick="toggleHeader()">▼ Controls</button>
+
+    <header id="main-header">
+        <div class="header-top">
+            <h1>Hele-On GTFS Viewer</h1>
+            <button class="toggle-btn" onclick="toggleHeader()">▲ Hide</button>
+        </div>
         <div class="controls-row">
-            <select id="route-select" onchange="renderRoute()"><option value="">Loading routes...</option></select>
-            <select id="day-select" onchange="renderRoute()">
-                <option value="weekday">Mon - Fri</option>
-                <option value="saturday">Saturday</option>
-                <option value="sunday">Sunday / Holiday</option>
-            </select>
+            <div class="select-wrapper">
+                <select id="route-select" onchange="renderRoute()"><option value="">Loading routes...</option></select>
+            </div>
+            <div class="select-wrapper" style="flex: 0.6;">
+                <select id="day-select" onchange="renderRoute()">
+                    <option value="weekday">Mon - Fri</option>
+                    <option value="saturday">Saturday</option>
+                    <option value="sunday">Sunday / Holiday</option>
+                </select>
+            </div>
         </div>
     </header>
 
@@ -49,6 +72,13 @@
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     <script>
+        function toggleHeader() {
+            const header = document.getElementById('main-header');
+            header.classList.toggle('collapsed');
+            document.body.classList.toggle('header-is-collapsed');
+            setTimeout(() => { map.invalidateSize(); }, 300);
+        }
+
         const map = L.map('map').setView([19.5750, -154.9600], 11);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
@@ -58,14 +88,8 @@
         let markersLayer = L.layerGroup().addTo(map);
         let userMarker = null;
 
-        let gtfsData = {
-            routes: {}, // route_id -> route name
-            trips: {},  // trip_id -> { route_id, service_id }
-            stops: {},  // stop_id -> { name, lat, lng, code }
-            stopTimes: {} // trip_id -> [{ stop_id, arrival_time }]
-        };
+        let gtfsData = { routes: {}, trips: {}, stops: {}, stopTimes: {} };
 
-        // Simple robust CSV parser handling quotes and commas
         function parseCSV(text) {
             let lines = text.trim().split(/\r\n|\n/);
             if (lines.length === 0) return [];
@@ -103,7 +127,6 @@
             return res;
         }
 
-        // Load and parse GTFS text files stored in the same local directory
         async function loadGTFSData() {
             try {
                 const [routesText, stopsText, tripsText, stopTimesText] = await Promise.all([
@@ -113,14 +136,12 @@
                     fetch('stop_times.txt').then(r => r.text())
                 ]);
 
-                // Parse Routes
                 parseCSV(routesText).forEach(row => {
                     let rId = row.route_id;
                     let rName = row.route_short_name ? `${row.route_short_name}: ${row.route_long_name}` : row.route_long_name;
                     gtfsData.routes[rId] = rName;
                 });
 
-                // Parse Stops
                 parseCSV(stopsText).forEach(row => {
                     gtfsData.stops[row.stop_id] = {
                         name: row.stop_name,
@@ -130,7 +151,6 @@
                     };
                 });
 
-                // Parse Trips
                 parseCSV(tripsText).forEach(row => {
                     gtfsData.trips[row.trip_id] = {
                         route_id: row.route_id,
@@ -138,7 +158,6 @@
                     };
                 });
 
-                // Parse Stop Times
                 parseCSV(stopTimesText).forEach(row => {
                     if (!gtfsData.stopTimes[row.trip_id]) {
                         gtfsData.stopTimes[row.trip_id] = [];
@@ -152,7 +171,7 @@
                 populateRouteDropdown();
             } catch (err) {
                 console.error("Error loading GTFS files:", err);
-                document.getElementById('route-select').innerHTML = '<option>Error: Place GTFS .txt files in folder</option>';
+                document.getElementById('route-select').innerHTML = '<option>Error loading text files</option>';
             }
         }
 
@@ -170,7 +189,6 @@
                 select.appendChild(opt);
             });
 
-            // Auto-select current day in dropdown
             const jsDay = new Date().getDay();
             document.getElementById('day-select').value = (jsDay === 0) ? 'sunday' : (jsDay === 6) ? 'saturday' : 'weekday';
 
@@ -185,19 +203,16 @@
             markersLayer.clearLayers();
             if (!routeId) return;
 
-            // Find all unique stops used by trips matching this route and day type
-            let activeStopsMap = {}; // stop_id -> Set of times
+            let activeStopsMap = {};
 
             Object.keys(gtfsData.trips).forEach(tripId => {
                 let trip = gtfsData.trips[tripId];
                 if (trip.route_id === routeId) {
-                    // Simple heuristic matching service_id strings for weekdays/weekends
                     let sId = trip.service_id.toLowerCase();
                     let isMatch = false;
                     if (dayType === 'weekday' && (sId.includes('week') || sId.includes('mon') || sId.includes('wd'))) isMatch = true;
                     if (dayType === 'saturday' && (sId.includes('sat') || sId.includes('we'))) isMatch = true;
                     if (dayType === 'sunday' && (sId.includes('sun') || sId.includes('hol') || sId.includes('we'))) isMatch = true;
-                    // Fallback if service naming scheme doesn't match standard abbreviations
                     if (!isMatch && Object.keys(gtfsData.trips).length < 500) isMatch = true; 
 
                     if (isMatch && gtfsData.stopTimes[tripId]) {
@@ -205,7 +220,7 @@
                             if (!activeStopsMap[st.stop_id]) {
                                 activeStopsMap[st.stop_id] = new Set();
                             }
-                            if (st.time) activeStopsMap[st.stop_id].add(st.time.substring(0, 5)); // HH:MM format
+                            if (st.time) activeStopsMap[st.stop_id].add(st.time.substring(0, 5));
                         });
                     }
                 }
@@ -243,12 +258,13 @@
                 }
             });
 
-            if (latLngs.length > 0) {
+            if (latLngs.length > 1) {
                 map.fitBounds(latLngs, { padding: [30, 30] });
+            } else if (latLngs.length === 1) {
+                map.setView(latLngs[0], 14);
             }
         }
 
-        // GPS Tracker
         if ("geolocation" in navigator) {
             navigator.geolocation.watchPosition(position => {
                 const userLat = position.coords.latitude;
@@ -262,7 +278,6 @@
             }, null, { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 });
         }
 
-        // Kick off loading process
         loadGTFSData();
     </script>
 </body>
