@@ -14,22 +14,22 @@
         header.collapsed { transform: translateY(-100%); position: absolute; width: 100%; pointer-events: none; }
         header.collapsed .toggle-btn { pointer-events: auto; }
 
-        .header-top { display: flex; align-items: center; justify-content: space-between; }
-        h1 { font-size: 0.9rem; color: #38bdf8; text-align: center; flex: 1; }
+        .header-top { display: flex; align-items: center; gap: 8px; position: relative; }
+        h1 { font-size: 0.85rem; color: #38bdf8; text-align: left; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 2px; }
         
-        .toggle-btn { background: #334155; color: #38bdf8; border: 1px solid #475569; border-radius: 4px; padding: 2px 8px; font-size: 0.8rem; font-weight: bold; cursor: pointer; }
+        /* Unified toggle/hide button styled for the left side */
+        .toggle-btn { background: #334155; color: #38bdf8; border: 1px solid #475569; border-radius: 4px; padding: 3px 7px; font-size: 0.75rem; font-weight: bold; cursor: pointer; flex-shrink: 0; }
 
         .controls-row { display: flex; gap: 4px; width: 100%; min-width: 0; }
         
-        /* min-width: 0 keeps flex items from overflowing off-screen */
         .select-wrapper { flex: 1; min-width: 0; position: relative; }
         select { width: 100%; min-width: 0; background: #334155; color: #fff; border: 1px solid #475569; padding: 5px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
         
         #map { flex: 1; width: 100%; background: #0f172a; z-index: 1; }
         
-        /* Floating handle when header is collapsed */
-        .floating-show-btn { position: absolute; top: 10px; left: 10px; z-index: 1001; background: #1e293b; color: #38bdf8; border: 1px solid #475569; border-radius: 4px; padding: 6px 10px; font-size: 0.8rem; font-weight: bold; display: none; box-shadow: 0 2px 6px rgba(0,0,0,0.5); }
-        body.header-is-collapsed .floating-show-btn { display: block; }
+        /* Floating handle perfectly aligned to the top-left spot */
+        .floating-toggle-btn { position: absolute; top: 6px; left: 8px; z-index: 1001; background: #1e293b; color: #38bdf8; border: 1px solid #475569; border-radius: 4px; padding: 4px 8px; font-size: 0.75rem; font-weight: bold; display: none; box-shadow: 0 2px 6px rgba(0,0,0,0.5); cursor: pointer; }
+        body.header-is-collapsed .floating-toggle-btn { display: block; }
 
         /* Popup Styling */
         .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #1e293b !important; color: #f8fafc !important; border: 1px solid #475569; border-radius: 6px; }
@@ -46,12 +46,14 @@
 </head>
 <body>
 
-    <button class="floating-show-btn" onclick="toggleHeader()">▼ Controls</button>
+    <!-- Floating button on the left when collapsed -->
+    <button class="floating-toggle-btn" onclick="toggleHeader()">▼ Controls</button>
 
     <header id="main-header">
         <div class="header-top">
-            <h1>Hele-On GTFS Viewer</h1>
+            <!-- Hide button on the left when expanded -->
             <button class="toggle-btn" onclick="toggleHeader()">▲ Hide</button>
+            <h1>Hele-On GTFS Viewer</h1>
         </div>
         <div class="controls-row">
             <div class="select-wrapper">
