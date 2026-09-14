@@ -17,7 +17,6 @@
         .header-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; position: relative; }
         h1 { font-size: 0.85rem; color: #38bdf8; text-align: left; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 2px; }
         
-        /* Arrow toggle button on the right */
         .toggle-btn { background: #334155; color: #38bdf8; border: 1px solid #475569; border-radius: 4px; padding: 4px 10px; font-size: 0.8rem; font-weight: bold; cursor: pointer; flex-shrink: 0; }
 
         .controls-row { display: flex; gap: 4px; width: 100%; min-width: 0; }
@@ -27,11 +26,9 @@
         
         #map { flex: 1; width: 100%; background: #0f172a; z-index: 1; }
         
-        /* Floating arrow button positioned on the top-right to keep map zoom buttons free */
         .floating-toggle-btn { position: absolute; top: 6px; right: 8px; z-index: 1001; background: #1e293b; color: #38bdf8; border: 1px solid #475569; border-radius: 4px; padding: 6px 12px; font-size: 0.8rem; font-weight: bold; display: none; box-shadow: 0 2px 6px rgba(0,0,0,0.5); cursor: pointer; }
         body.header-is-collapsed .floating-toggle-btn { display: block; }
 
-        /* Popup Styling */
         .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #1e293b !important; color: #f8fafc !important; border: 1px solid #475569; border-radius: 6px; }
         .leaflet-popup-content { font-size: 0.75rem; line-height: 1.3; margin: 8px; }
         .popup-stop-name { font-weight: bold; color: #38bdf8; font-size: 0.8rem; margin-bottom: 2px; display: block; }
@@ -46,13 +43,11 @@
 </head>
 <body>
 
-    <!-- Floating arrow button on the right when collapsed -->
     <button class="floating-toggle-btn" onclick="toggleHeader()">▼</button>
 
     <header id="main-header">
         <div class="header-top">
             <h1>Hele-On GTFS Viewer</h1>
-            <!-- Arrow button on the right when expanded -->
             <button class="toggle-btn" onclick="toggleHeader()">▲</button>
         </div>
         <div class="controls-row">
@@ -90,7 +85,7 @@
         let markersLayer = L.layerGroup().addTo(map);
         let userMarker = null;
 
-        let gtfsData = { routes: {}, trips: {}, stops: {}, stopTimes: {} };
+        let gtfsData = { routes: {}, trips: {}, stops: {}, stopTimes: {}, shapes: {} };
 
         function parseCSV(text) {
             let lines = text.trim().split(/\r\n|\n/);
@@ -131,11 +126,12 @@
 
         async function loadGTFSData() {
             try {
-                const [routesText, stopsText, tripsText, stopTimesText] = await Promise.all([
+                const [routesText, stopsText, tripsText, stopTimesText, shapesText] = await Promise.all([
                     fetch('routes.txt').then(r => r.text()),
                     fetch('stops.txt').then(r => r.text()),
                     fetch('trips.txt').then(r => r.text()),
-                    fetch('stop_times.txt').then(r => r.text())
+                    fetch('stop_times.txt').then(r => r.text()),
+                    fetch('shapes.txt').then(r => r.text())
                 ]);
 
                 parseCSV(routesText).forEach(row => {
@@ -156,7 +152,8 @@
                 parseCSV(tripsText).forEach(row => {
                     gtfsData.trips[row.trip_id] = {
                         route_id: row.route_id,
-                        service_id: row.service_id
+                        service_id: row.service_id,
+                        shape_id: row.shape_id
                     };
                 });
 
@@ -168,6 +165,23 @@
                         stop_id: row.stop_id,
                         time: row.arrival_time || row.departure_time
                     });
+                });
+
+                parseCSV(shapesText).forEach(row => {
+                    let sId = row.shape_id;
+                    if (!gtfsData.shapes[sId]) {
+                        gtfsData.shapes[sId] = [];
+                    }
+                    gtfsData.shapes[sId].push({
+                        lat: parseFloat(row.shape_pt_lat),
+                        lng: parseFloat(row.shape_pt_lon),
+                        seq: parseInt(row.shape_pt_sequence)
+                    });
+                });
+
+                // Sort points for each shape by sequence number
+                Object.keys(gtfsData.shapes).forEach(sId => {
+                    gtfsData.shapes[sId].sort((a, b) => a.seq - b.seq);
                 });
 
                 populateRouteDropdown();
@@ -206,6 +220,7 @@
             if (!routeId) return;
 
             let activeStopsMap = {};
+            let activeShapes = new Set();
 
             Object.keys(gtfsData.trips).forEach(tripId => {
                 let trip = gtfsData.trips[tripId];
@@ -217,19 +232,38 @@
                     if (dayType === 'sunday' && (sId.includes('sun') || sId.includes('hol') || sId.includes('we'))) isMatch = true;
                     if (!isMatch && Object.keys(gtfsData.trips).length < 500) isMatch = true; 
 
-                    if (isMatch && gtfsData.stopTimes[tripId]) {
-                        gtfsData.stopTimes[tripId].forEach(st => {
-                            if (!activeStopsMap[st.stop_id]) {
-                                activeStopsMap[st.stop_id] = new Set();
-                            }
-                            if (st.time) activeStopsMap[st.stop_id].add(st.time.substring(0, 5));
-                        });
+                    if (isMatch) {
+                        if (trip.shape_id) activeShapes.add(trip.shape_id);
+                        if (gtfsData.stopTimes[tripId]) {
+                            gtfsData.stopTimes[tripId].forEach(st => {
+                                if (!activeStopsMap[st.stop_id]) {
+                                    activeStopsMap[st.stop_id] = new Set();
+                                }
+                                if (st.time) activeStopsMap[st.stop_id].add(st.time.substring(0, 5));
+                            });
+                        }
                     }
                 }
             });
 
             let latLngs = [];
 
+            // 1. Draw route shape polylines if available
+            activeShapes.forEach(shapeId => {
+                let points = gtfsData.shapes[shapeId];
+                if (points && points.length > 0) {
+                    let lineCoords = points.map(p => [p.lat, p.lng]);
+                    let polyline = L.polyline(lineCoords, {
+                        color: '#38bdf8',
+                        weight: 4,
+                        opacity: 0.75
+                    });
+                    markersLayer.addLayer(polyline);
+                    points.forEach(p => latLngs.push([p.lat, p.lng]));
+                }
+            });
+
+            // 2. Draw stop markers and popups
             Object.keys(activeStopsMap).forEach(stopId => {
                 let stopInfo = gtfsData.stops[stopId];
                 if (stopInfo && !isNaN(stopInfo.lat) && !isNaN(stopInfo.lng)) {
