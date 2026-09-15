@@ -120,7 +120,8 @@
         let tripPlanner = { startStopId: null, endStopId: null };
         let availableRouteOptionsHtml = '<option value="">Select Route</option>';
 
-        const shapeColors = ['#06b6d4', '#4ade80', '#38bdf8', '#22c55e', '#0284c7', '#10b981', '#0ea5e9', '#86efac'];
+        // High-contrast vibrant palette for distinguishing multiple routes cleanly
+        const vibrantRouteColors = ['#f43f5e', '#38bdf8', '#4ade80', '#f59e0b', '#a855f7', '#ec4899', '#14b8a6', '#84cc16', '#eab308', '#6366f1'];
 
         function parseCSV(text) {
             let lines = text.trim().split(/\r\n|\n/);
@@ -383,13 +384,13 @@
             return (brng + 360) % 360;
         }
 
-        function getClosestShapeMatch(stopLat, stopLng, activeShapesSet, shapeColorMap) {
+        function getClosestShapeMatch(stopLat, stopLng, activeShapesMap) {
             let closestPt = null;
             let nextPt = null;
             let minDist = Infinity;
-            let matchedShapeId = null;
+            let matchedRouteId = null;
 
-            activeShapesSet.forEach(shapeId => {
+            activeShapesMap.forEach((routeId, shapeId) => {
                 let points = gtfsData.shapes[shapeId];
                 if (!points) return;
                 for (let i = 0; i < points.length; i++) {
@@ -399,32 +400,37 @@
                         minDist = dist;
                         closestPt = p;
                         nextPt = points[i + 1] || points[i - 1];
-                        matchedShapeId = shapeId;
+                        matchedRouteId = routeId;
                     }
                 }
             });
 
             let bearing = (!closestPt || !nextPt) ? 0 : calculateBearing(closestPt.lat, closestPt.lng, nextPt.lat, nextPt.lng);
-            let color = (matchedShapeId && shapeColorMap[matchedShapeId]) ? shapeColorMap[matchedShapeId] : '#06b6d4';
-            return { bearing, color };
+            return { bearing, matchedRouteId };
         }
 
         function redrawMapLayers(shouldCenter = false) {
             markersLayer.clearLayers();
 
             const selects = document.querySelectorAll('.route-select-dropdown');
-            let activeRouteIds = new Set();
+            let activeRouteIds = [];
             selects.forEach(sel => {
-                if (sel.value) {
-                    activeRouteIds.add(sel.value);
+                if (sel.value && !activeRouteIds.includes(sel.value)) {
+                    activeRouteIds.push(sel.value);
                 }
             });
 
-            if (activeRouteIds.size === 0) return;
+            if (activeRouteIds.length === 0) return;
+
+            // Assign distinct color per route
+            let routeColorMap = {};
+            activeRouteIds.forEach((routeId, idx) => {
+                routeColorMap[routeId] = vibrantRouteColors[idx % vibrantRouteColors.length];
+            });
 
             const targetDate = getTargetEvaluationDate();
             let activeStopsMap = {};
-            let activeShapes = new Set();
+            let activeShapesMap = new Map(); // shapeId -> routeId
 
             activeRouteIds.forEach(routeId => {
                 Object.keys(gtfsData.trips).forEach(tripId => {
@@ -432,7 +438,7 @@
                     if (trip.route_id === routeId) {
                         if (isServiceActive(trip.service_id, targetDate)) {
                             if (trip.shape_id) {
-                                activeShapes.add(trip.shape_id);
+                                activeShapesMap.set(trip.shape_id, routeId);
                             }
                             let tripStops = gtfsData.stopTimes[tripId];
                             if (tripStops && tripStops.length > 0) {
@@ -464,21 +470,14 @@
                 });
             });
 
-            let shapeColorMap = {};
-            let colorIdx = 0;
-            activeShapes.forEach(shapeId => {
-                shapeColorMap[shapeId] = shapeColors[colorIdx % shapeColors.length];
-                colorIdx++;
-            });
-
             let routeBounds = L.latLngBounds([]);
 
-            activeShapes.forEach(shapeId => {
+            activeShapesMap.forEach((routeId, shapeId) => {
                 let points = gtfsData.shapes[shapeId];
                 if (points && points.length > 0) {
                     let lineCoords = points.map(p => [p.lat, p.lng]);
                     let polyline = L.polyline(lineCoords, {
-                        color: shapeColorMap[shapeId],
+                        color: routeColorMap[routeId] || '#06b6d4',
                         weight: 5,
                         opacity: 0.75
                     });
@@ -490,9 +489,9 @@
             Object.keys(activeStopsMap).forEach(stopId => {
                 let stopInfo = gtfsData.stops[stopId];
                 if (stopInfo && !isNaN(stopInfo.lat) && !isNaN(stopInfo.lng)) {
-                    let matchInfo = getClosestShapeMatch(stopInfo.lat, stopInfo.lng, activeShapes, shapeColorMap);
+                    let matchInfo = getClosestShapeMatch(stopInfo.lat, stopInfo.lng, activeShapesMap);
 
-                    let finalIconColor = matchInfo.color;
+                    let finalIconColor = routeColorMap[matchInfo.matchedRouteId] || '#06b6d4';
                     if (stopId === tripPlanner.startStopId) {
                         finalIconColor = '#f97316'; 
                     } else if (stopId === tripPlanner.endStopId) {
@@ -505,7 +504,7 @@
                     Object.keys(destinationsObj).forEach(destName => {
                         let rawTimesArr = destinationsObj[destName];
 
-                        // Programmatic deduplication map
+                        // Deduplication map
                         let uniqueMap = new Map();
                         rawTimesArr.forEach(item => {
                             let uniqueKey = `${item.sortTime}|${item.localText}|${item.destText}`;
