@@ -112,11 +112,10 @@
 
         const map = L.map('map').setView([19.5750, -154.9600], 11);
         
-        // Dark Mode Map Tiles (CartoDB Dark Matter)
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        // Standard OpenStreetMap Tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
-            subdomains: 'abcd',
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+            attribution: '&copy; OpenStreetMap'
         }).addTo(map);
 
         let markersLayer = L.layerGroup().addTo(map);
@@ -434,7 +433,7 @@
                     let polyline = L.polyline(lineCoords, { 
                         color: shapeColorMap[shapeId], 
                         weight: 5, 
-                        opacity: 0.85 
+                        opacity: 0.75 
                     });
                     markersLayer.addLayer(polyline);
                     points.forEach(p => latLngs.push([p.lat, p.lng]));
