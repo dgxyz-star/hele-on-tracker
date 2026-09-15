@@ -73,6 +73,7 @@
 <body>
 
     <div class="floating-toggle-container">
+        <button class="floating-btn" onclick="addRouteDropdown()" title="Add Route">+</button>
         <button class="floating-btn" onclick="locateUser()" title="Locate GPS">🎯</button>
         <button class="floating-btn" onclick="refreshSelectedRoutes()" title="Refresh Routes">R</button>
         <button class="floating-btn" onclick="clearAllMarkers()" title="Clear Markers">C</button>
@@ -93,7 +94,7 @@
         </div>
         <div id="route-controls-wrapper" style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
             <div class="controls-row">
-                <button class="action-top-btn" onclick="addRouteDropdown()" title="Add Route">+</button>
+                <button class="action-top-btn" onclick="removeRouteDropdown(this)" title="Remove Route" style="background:#475569; color:#f43f5e;">✕</button>
                 <div class="select-wrapper">
                     <select class="route-select" onchange="renderSelectedRoutes()"><option value="">Select a route...</option></select>
                 </div>
@@ -125,7 +126,7 @@
             setTimeout(() => { map.invalidateSize(); }, 300);
         }
 
-        const map = L.map('map').setView([19.5750, -154.9600], 11);
+        const map = L.map('map', { zoomControl: false }).setView([19.5750, -154.9600], 11);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
@@ -227,7 +228,6 @@
             const selects = document.querySelectorAll('.route-select');
             let targetSelect = null;
 
-            // Find first dropdown that is currently empty (not yet selected)
             for (let sel of selects) {
                 if (!sel.value) {
                     targetSelect = sel;
@@ -235,7 +235,6 @@
                 }
             }
 
-            // If all current dropdowns have a selection, add a new dropdown row instead of overwriting
             if (!targetSelect) {
                 addRouteDropdown();
                 const updatedSelects = document.querySelectorAll('.route-select');
