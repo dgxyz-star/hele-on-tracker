@@ -69,7 +69,7 @@
     <header id="main-header">
         <div class="header-top">
             <div class="header-date-wrapper">
-                <select id="date-select" onchange="redrawMapLayers()"></select>
+                <select id="date-select" onchange="redrawMapLayers(false)"></select>
             </div>
             <div class="header-top-controls">
                 <button class="gps-btn" onclick="locateUser()" title="Locate GPS">🎯</button>
@@ -305,19 +305,19 @@
                 dateSelect.appendChild(opt);
             }
 
-            // Start with one route selection row by default
-            addRouteRow();
+            // Start with one route selection row by default (passed false so it doesn't move map on startup)
+            addRouteRow('', false);
         }
 
-        function addRouteRow(selectedRouteId = '') {
+        function addRouteRow(selectedRouteId = '', shouldCenter = false) {
             const container = document.getElementById('route-rows-container');
             const rowDiv = document.createElement('div');
             rowDiv.className = 'controls-row';
-            
+
             rowDiv.innerHTML = `
                 <button class="remove-row-btn" onclick="removeRouteRow(this)" title="Remove Route">✕</button>
                 <div class="select-wrapper">
-                    <select class="route-select-dropdown" onchange="redrawMapLayers()">${availableRouteOptionsHtml}</select>
+                    <select class="route-select-dropdown" onchange="redrawMapLayers(true)">${availableRouteOptionsHtml}</select>
                 </div>
             `;
             container.appendChild(rowDiv);
@@ -325,21 +325,21 @@
             if (selectedRouteId) {
                 const selectEl = rowDiv.querySelector('.route-select-dropdown');
                 selectEl.value = selectedRouteId;
-                redrawMapLayers();
+                redrawMapLayers(shouldCenter);
             }
         }
 
         function removeRouteRow(btn) {
             const rowDiv = btn.closest('.controls-row');
             const container = document.getElementById('route-rows-container');
-            
+
             if (container.children.length > 1) {
                 rowDiv.remove();
             } else {
                 const selectEl = rowDiv.querySelector('.route-select-dropdown');
                 selectEl.value = '';
             }
-            redrawMapLayers();
+            redrawMapLayers(false);
         }
 
         function getTargetEvaluationDate() {
@@ -410,7 +410,7 @@
             return { bearing, color };
         }
 
-        function redrawMapLayers() {
+        function redrawMapLayers(shouldCenter = false) {
             markersLayer.clearLayers();
 
             const selects = document.querySelectorAll('.route-select-dropdown');
@@ -472,6 +472,8 @@
                 colorIdx++;
             });
 
+            let routeBounds = L.latLngBounds([]);
+
             activeShapes.forEach(shapeId => {
                 let points = gtfsData.shapes[shapeId];
                 if (points && points.length > 0) {
@@ -482,6 +484,7 @@
                         opacity: 0.75
                     });
                     markersLayer.addLayer(polyline);
+                    routeBounds.extend(polyline.getBounds());
                 }
             });
 
@@ -534,8 +537,14 @@
 
                     let marker = L.marker([stopInfo.lat, stopInfo.lng], { icon: svgArrowIcon }).bindPopup(popupContent);
                     markersLayer.addLayer(marker);
+                    routeBounds.extend([stopInfo.lat, stopInfo.lng]);
                 }
             });
+
+            // Center map ONLY when explicitly requested (e.g. user selecting a route dropdown)
+            if (shouldCenter && routeBounds.isValid()) {
+                map.fitBounds(routeBounds, { padding: [50, 50] });
+            }
         }
 
         function setPlannerStop(stopId, type) {
@@ -545,7 +554,7 @@
                 tripPlanner.endStopId = stopId;
             }
             map.closePopup();
-            redrawMapLayers();
+            redrawMapLayers(false);
             evaluateTripPlanner();
         }
 
@@ -615,7 +624,7 @@
             tripPlanner.startStopId = null;
             tripPlanner.endStopId = null;
             document.getElementById('planner-panel').classList.add('hidden');
-            redrawMapLayers();
+            redrawMapLayers(false);
         }
 
         function locateUser() {
@@ -661,7 +670,6 @@
                     }
 
                     if (matchedRouteId) {
-                        // Find the first dropdown that has no route selected ("")
                         const selects = document.querySelectorAll('.route-select-dropdown');
                         let targetSelect = null;
                         for (let sel of selects) {
@@ -673,10 +681,9 @@
 
                         if (targetSelect) {
                             targetSelect.value = matchedRouteId;
-                            redrawMapLayers();
+                            redrawMapLayers(true); // Center when finding and selecting via nearest route tool
                         } else {
-                            // If all rows are taken, add a new one with this route
-                            addRouteRow(matchedRouteId);
+                            addRouteRow(matchedRouteId, true);
                         }
                     }
                 }
