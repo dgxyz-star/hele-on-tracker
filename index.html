@@ -108,6 +108,8 @@
         let gtfsData = { routes: {}, trips: {}, stops: {}, stopTimes: {}, shapes: {} };
         let tripPlanner = { startStopId: null, endStopId: null };
 
+        const shapeColors = ['#38bdf8', '#4ade80', '#f43f5e', '#fbbf24', '#c084fc', '#2dd4bf', '#fb7185', '#818cf8'];
+
         function parseCSV(text) {
             let lines = text.trim().split(/\r\n|\n/);
             if (lines.length === 0) return [];
@@ -250,29 +252,30 @@
             return (brng + 360) % 360;
         }
 
-        function getStopBearing(stopLat, stopLng, shapePoints) {
-            if (!shapePoints || shapePoints.length === 0) return 0;
-            let closestIdx = 0;
+        function getClosestShapeMatch(stopLat, stopLng, activeShapesSet, shapeColorMap) {
+            let closestPt = null;
+            let nextPt = null;
             let minDist = Infinity;
+            let matchedShapeId = null;
 
-            for (let i = 0; i < shapePoints.length; i++) {
-                let p = shapePoints[i];
-                let dist = Math.pow(p.lat - stopLat, 2) + Math.pow(p.lng - stopLng, 2);
-                if (dist < minDist) {
-                    minDist = dist;
-                    closestIdx = i;
+            activeShapesSet.forEach(shapeId => {
+                let points = gtfsData.shapes[shapeId];
+                if (!points) return;
+                for (let i = 0; i < points.length; i++) {
+                    let p = points[i];
+                    let dist = Math.pow(p.lat - stopLat, 2) + Math.pow(p.lng - stopLng, 2);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        closestPt = p;
+                        nextPt = points[i + 1] || points[i - 1];
+                        matchedShapeId = shapeId;
+                    }
                 }
-            }
+            });
 
-            let p1 = shapePoints[closestIdx];
-            let p2 = shapePoints[closestIdx + 1] || shapePoints[closestIdx - 1];
-            if (!p2) return 0;
-
-            if (closestIdx < shapePoints.length - 1) {
-                return calculateBearing(p1.lat, p1.lng, p2.lat, p2.lng);
-            } else {
-                return calculateBearing(p2.lat, p2.lng, p1.lat, p1.lng);
-            }
+            let bearing = (!closestPt || !nextPt) ? 0 : calculateBearing(closestPt.lat, closestPt.lng, nextPt.lat, nextPt.lng);
+            let color = (matchedShapeId && shapeColorMap[matchedShapeId]) ? shapeColorMap[matchedShapeId] : '#38bdf8';
+            return { bearing, color };
         }
 
         function renderRoute() {
@@ -283,7 +286,6 @@
 
             let activeStopsMap = {};
             let activeShapes = new Set();
-            let primaryShapePoints = [];
 
             Object.keys(gtfsData.trips).forEach(tripId => {
                 let trip = gtfsData.trips[tripId];
@@ -298,9 +300,6 @@
                     if (isMatch) {
                         if (trip.shape_id) {
                             activeShapes.add(trip.shape_id);
-                            if (primaryShapePoints.length === 0 && gtfsData.shapes[trip.shape_id]) {
-                                primaryShapePoints = gtfsData.shapes[trip.shape_id];
-                            }
                         }
                         let tripStops = gtfsData.stopTimes[tripId];
                         if (tripStops && tripStops.length > 0) {
@@ -331,25 +330,36 @@
                 }
             });
 
+            // Assign unique colors per shape ID with lowered opacity for stacking visibility
+            let shapeColorMap = {};
+            let colorIdx = 0;
+            activeShapes.forEach(shapeId => {
+                shapeColorMap[shapeId] = shapeColors[colorIdx % shapeColors.length];
+                colorIdx++;
+            });
+
             let latLngs = [];
 
             activeShapes.forEach(shapeId => {
                 let points = gtfsData.shapes[shapeId];
                 if (points && points.length > 0) {
                     let lineCoords = points.map(p => [p.lat, p.lng]);
-                    let polyline = L.polyline(lineCoords, { color: '#38bdf8', weight: 4, opacity: 0.75 });
+                    let polyline = L.polyline(lineCoords, { 
+                        color: shapeColorMap[shapeId], 
+                        weight: 5, 
+                        opacity: 0.55 // Lowered opacity so overlapping paths blend cleanly
+                    });
                     markersLayer.addLayer(polyline);
                     points.forEach(p => latLngs.push([p.lat, p.lng]));
                 }
             });
 
-            // Replace text triangles with a clean SVG navigation arrow icon
             Object.keys(activeStopsMap).forEach(stopId => {
                 let stopInfo = gtfsData.stops[stopId];
                 if (stopInfo && !isNaN(stopInfo.lat) && !isNaN(stopInfo.lng)) {
                     latLngs.push([stopInfo.lat, stopInfo.lng]);
 
-                    let bearing = getStopBearing(stopInfo.lat, stopInfo.lng, primaryShapePoints);
+                    let matchInfo = getClosestShapeMatch(stopInfo.lat, stopInfo.lng, activeShapes, shapeColorMap);
 
                     let headsignsObj = activeStopsMap[stopId];
                     let schedulesHtml = '';
@@ -374,11 +384,10 @@
                         ${schedulesHtml}
                     `;
 
-                    // Using a proper clean SVG arrow graphic
                     let svgArrowIcon = L.divIcon({
                         className: 'stop-svg-arrow',
-                        html: `<div style="transform: rotate(${bearing}deg); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0px 0px 3px rgba(0,0,0,0.8));">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="#38bdf8" stroke="#0f172a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        html: `<div style="transform: rotate(${matchInfo.bearing}deg); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0px 0px 3px rgba(0,0,0,0.8));">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="${matchInfo.color}" stroke="#0f172a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <polygon points="12 2 19 21 12 17 5 21 12 2"></polygon>
                             </svg>
                         </div>`,
