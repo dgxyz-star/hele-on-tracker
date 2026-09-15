@@ -117,7 +117,7 @@
         let gtfsData = { routes: {}, trips: {}, stops: {}, stopTimes: {}, shapes: {} };
         let tripPlanner = { startStopId: null, endStopId: null };
 
-        // High-contrast shape colors (Cyan, Red, Amber, Magenta, Purple, Teal) avoiding green/blue clashes
+        // High-contrast shape colors
         const shapeColors = ['#06b6d4', '#f43f5e', '#fbbf24', '#ec4899', '#8b5cf6', '#14b8a6', '#f97316', '#6366f1'];
 
         function parseCSV(text) {
@@ -363,6 +363,7 @@
                 }
             });
 
+            // Ensure EVERY active stop for the route gets rendered regardless of strict shape distance bounds
             Object.keys(activeStopsMap).forEach(stopId => {
                 let stopInfo = gtfsData.stops[stopId];
                 if (stopInfo && !isNaN(stopInfo.lat) && !isNaN(stopInfo.lng)) {
