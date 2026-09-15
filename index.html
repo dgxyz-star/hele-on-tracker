@@ -465,22 +465,6 @@
                 if (!isMatch && Object.keys(gtfsData.trips).length < 500) isMatch = true;
 
                 if (isMatch) {
-                    let stops = gtFSData.stopTimes[tripId] || []; // handled correctly by runtime
-                    // ... (rest of logic handles validation properly)
-                }
-            });
-            // Re-evaluating standard valid trips loop cleanly
-            validTrips = [];
-            Object.keys(gtfsData.trips).forEach(tripId => {
-                let trip = gtfsData.trips[tripId];
-                let sId = trip.service_id.toLowerCase();
-                let isMatch = false;
-                if (dayType === 'weekday' && (sId.includes('week') || sId.includes('mon') || sId.includes('wd'))) isMatch = true;
-                if (dayType === 'saturday' && (sId.includes('sat') || sId.includes('we'))) isMatch = true;
-                if (dayType === 'sunday' && (sId.includes('sun') || sId.includes('hol') || sId.includes('we'))) isMatch = true;
-                if (!isMatch && Object.keys(gtfsData.trips).length < 500) isMatch = true;
-
-                if (isMatch) {
                     let stops = gtfsData.stopTimes[tripId] || [];
                     let startIndex = -1, endIndex = -1;
                     for (let i = 0; i < stops.length; i++) {
@@ -544,7 +528,7 @@
             navigator.geolocation.watchPosition(position => {
                 lastUserLatLng = [position.coords.latitude, position.coords.longitude];
                 if (!userMarker) {
-                    let userIcon = L.divIcon({ className: 'user-loc-dot', iconSize: [10, 10], iconAnchor: [5, 5]</i>;
+                    let userIcon = L.divIcon({ className: 'user-loc-dot', iconSize: [10, 10], iconAnchor: [5, 5] });
                     userMarker = L.marker(lastUserLatLng, { icon: userIcon }).addTo(map).bindPopup("<b>You are here</b>");
                 } else {
                     userMarker.setLatLng(lastUserLatLng);
