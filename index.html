@@ -601,7 +601,7 @@
                 }
             });
 
-            // 2. If no direct trips, check for 1-transfer connections through shared hub stops
+            // 2. If no direct trips, check for 1-transfer connections through shared hub stops with forward temporal window (up to 2 hrs transfer window)
             if (validTrips.length === 0) {
                 Object.keys(gtfsData.stops).forEach(hubId => {
                     if (hubId === tripPlanner.startStopId || hubId === tripPlanner.endStopId) return;
