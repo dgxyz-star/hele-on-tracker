@@ -52,6 +52,17 @@
         .time-group { font-family: monospace; color: #4ade80; font-weight: bold; white-space: nowrap; }
 
         .user-loc-dot { background: #06b6d4; border: 2px solid #ffffff; border-radius: 50%; box-shadow: 0 0 6px rgba(6, 182, 212, 0.8); }
+
+        /* Classic Map Pin Marker Style */
+        .map-pin-container {
+            position: relative;
+            width: 32px;
+            height: 42px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            filter: drop-shadow(0 3px 4px rgba(0,0,0,0.5));
+        }
     </style>
 </head>
 <body>
@@ -105,17 +116,8 @@
             setTimeout(() => { map.invalidateSize(); }, 300);
         }
 
-        function togglePlannerPanel() {
-            const panel = document.getElementById('planner-panel');
-            panel.classList.toggle('hidden');
-            if (!panel.classList.contains('hidden') && !tripPlanner.startStopId) {
-                evaluateTripPlanner();
-            }
-        }
-
         const map = L.map('map').setView([19.5750, -154.9600], 11);
 
-        // Standard OpenStreetMap Tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; OpenStreetMap'
@@ -134,7 +136,6 @@
 
         const shapeColors = ['#06b6d4', '#4ade80', '#38bdf8', '#22c55e', '#0284c7', '#10b981', '#0ea5e9', '#86efac'];
 
-        // Map Click Interaction to Pin Custom Start (A) or End (B) Points
         map.on('click', function(e) {
             const lat = e.latlng.lat;
             const lng = e.latlng.lng;
@@ -157,11 +158,25 @@
         function setCustomPin(lat, lng, type) {
             map.closePopup();
             
+            let pinColor = type === 'start' ? '#4ade80' : '#f43f5e';
+            let labelText = type === 'start' ? 'A' : 'B';
+
+            // Classic Map Pin SVG Icon with inner letter badge
+            let pinHtml = `
+                <div class="map-pin-container">
+                    <svg width="32" height="42" viewBox="0 0 24 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24s12-15 12-24c0-6.627-5.373-12-12-12z" fill="${pinColor}" stroke="#ffffff" stroke-width="1.5"/>
+                    </svg>
+                    <div style="position: absolute; top: 4px; color: #0f172a; font-weight: bold; font-size: 0.75rem;">${labelText}</div>
+                </div>
+            `;
+
             let pinIcon = L.divIcon({
-                className: 'custom-pin-icon',
-                html: `<div style="background: ${type === 'start' ? '#4ade80' : '#f43f5e'}; color: #0f172a; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid #fff; box-shadow: 0 0 6px rgba(0,0,0,0.6); font-size: 0.7rem;">${type === 'start' ? 'A' : 'B'}</div>`,
-                iconSize: [26, 26],
-                iconAnchor: [13, 13]
+                className: 'custom-map-pin',
+                html: pinHtml,
+                iconSize: [32, 42],
+                iconAnchor: [16, 42],
+                popupAnchor: [0, -38]
             });
 
             if (customPins[type].marker) {
@@ -235,11 +250,9 @@
 
             let activeRouteIds = Array.from(matchingRouteIds);
             
-            // Populate dropdowns with found routes if available
             const selects = document.querySelectorAll('.route-select');
             if (selects.length > 0 && activeRouteIds.length > 0) {
                 selects[0].value = activeRouteIds[0];
-                // If there are more routes, add dropdowns for them
                 for (let i = 1; i < activeRouteIds.length; i++) {
                     if (i >= selects.length) {
                         addRouteDropdown();
