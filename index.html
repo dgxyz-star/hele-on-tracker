@@ -52,6 +52,7 @@
         .time-group { font-family: monospace; color: #4ade80; font-weight: bold; white-space: nowrap; }
         
         .user-loc-dot { background: #06b6d4; border: 2px solid #ffffff; border-radius: 50%; box-shadow: 0 0 6px rgba(6, 182, 212, 0.8); }
+        .custom-pin-dot { background: #f43f5e; border: 2px solid #ffffff; border-radius: 50%; box-shadow: 0 0 6px rgba(244, 63, 94, 0.8); }
     </style>
 </head>
 <body>
@@ -102,14 +103,6 @@
             setTimeout(() => { map.invalidateSize(); }, 300);
         }
 
-        function togglePlannerPanel() {
-            const panel = document.getElementById('planner-panel');
-            panel.classList.toggle('hidden');
-            if (!panel.classList.contains('hidden') && !tripPlanner.startStopId) {
-                evaluateTripPlanner();
-            }
-        }
-
         const map = L.map('map').setView([19.5750, -154.9600], 11);
         
         // Standard OpenStreetMap Tiles
@@ -121,8 +114,10 @@
         let markersLayer = L.layerGroup().addTo(map);
         let userMarker = null;
         let lastUserLatLng = null;
+        let customPinMarker = null;
+        let customPinLatLng = null;
 
-        let gtfsData = { routes: {}, trips: {}, stops: {}, stopTimes: {}, shapes: {}, calendar: {}, calendarDates: {} };
+        let gtfsData = { routes: {}, trips: {}, stops: {}, stopTimes: {}, shapes: {}, calendar: {}, calendarDates: {}, transfers: [] };
         let tripPlanner = { startStopId: null, endStopId: null };
 
         const shapeColors = ['#06b6d4', '#4ade80', '#38bdf8', '#22c55e', '#0284c7', '#10b981', '#0ea5e9', '#86efac'];
@@ -166,14 +161,15 @@
 
         async function loadGTFSData() {
             try {
-                const [routesText, stopsText, tripsText, stopTimesText, shapesText, calendarText, calendarDatesText] = await Promise.all([
+                const [routesText, stopsText, tripsText, stopTimesText, shapesText, calendarText, calendarDatesText, transfersText] = await Promise.all([
                     fetch('routes.txt').then(r => r.text()),
                     fetch('stops.txt').then(r => r.text()),
                     fetch('trips.txt').then(r => r.text()),
                     fetch('stop_times.txt').then(r => r.text()),
                     fetch('shapes.txt').then(r => r.text()),
                     fetch('calendar.txt').then(r => r.text()),
-                    fetch('calendar_dates.txt').then(r => r.text()).catch(() => '')
+                    fetch('calendar_dates.txt').then(r => r.text()).catch(() => ''),
+                    fetch('transfers.txt').then(r => r.text()).catch(() => '')
                 ]);
 
                 parseCSV(routesText).forEach(row => {
@@ -254,6 +250,8 @@
                     }
                     gtfsData.calendarDates[row.date][row.service_id] = parseInt(row.exception_type);
                 });
+
+                gtfsData.transfers = parseCSV(transfersText);
 
                 populateControls();
             } catch (err) {
@@ -374,16 +372,20 @@
 
         function renderRoute() {
             const routeId = document.getElementById('route-select').value;
-            markersLayer.clearLayers();
             if (!routeId) return;
+            renderRoutesMultiple([routeId]);
+        }
 
+        function renderRoutesMultiple(routeIdsArray) {
+            markersLayer.clearLayers();
             const targetDate = getTargetEvaluationDate();
             let activeStopsMap = {};
             let activeShapes = new Set();
+            let targetRouteSet = new Set(routeIdsArray);
 
             Object.keys(gtfsData.trips).forEach(tripId => {
                 let trip = gtfsData.trips[tripId];
-                if (trip.route_id === routeId) {
+                if (targetRouteSet.has(trip.route_id)) {
                     if (isServiceActive(trip.service_id, targetDate)) {
                         if (trip.shape_id) {
                             activeShapes.add(trip.shape_id);
@@ -487,8 +489,63 @@
                 }
             });
 
+            // Re-add custom pin if present
+            if (customPinLatLng) {
+                let pinIcon = L.divIcon({ className: 'custom-pin-dot', iconSize: [12, 12], iconAnchor: [6, 6] });
+                let pinPopupContent = `
+                    <span class="popup-stop-name">Custom Pin</span>
+                    <div class="popup-stop-meta">Snapped to nearest stop or destination</div>
+                    <div>
+                        <button class="btn-action" onclick="setPlannerStopFromCoords('start')">📍 Set Start Here</button>
+                        <button class="btn-action" onclick="setPlannerStopFromCoords('end')">🏁 Set End Here</button>
+                    </div>
+                `;
+                L.marker(customPinLatLng, { icon: pinIcon }).addTo(markersLayer).bindPopup(pinPopupContent);
+            }
+
             if (latLngs.length > 1) {
                 map.fitBounds(latLngs, { padding: [30, 30] });
+            }
+        }
+
+        // Map Context Menu / Long-Press for Custom Pins
+        map.on('contextmenu', function(e) {
+            customPinLatLng = [e.latlng.lat, e.latlng.lng];
+            renderRoute(); // Refresh to draw pin
+            L.popup()
+                .setLatLng(e.latlng)
+                .setContent(`
+                    <span class="popup-stop-name">Custom Location</span>
+                    <div class="popup-stop-meta">${e.latlng.lat.toFixed(4)}, ${e.latlng.lng.toFixed(4)}</div>
+                    <div>
+                        <button class="btn-action" onclick="setPlannerStopFromCoords('start')">📍 Set Start Here</button>
+                        <button class="btn-action" onclick="setPlannerStopFromCoords('end')">🏁 Set End Here</button>
+                    </div>
+                `)
+                .openOn(map);
+        });
+
+        function findNearestStopId(lat, lng) {
+            let closestId = null;
+            let minDist = Infinity;
+            Object.keys(gtfsData.stops).forEach(stopId => {
+                let s = gtfsData.stops[stopId];
+                if (!isNaN(s.lat) && !isNaN(s.lng)) {
+                    let dist = Math.pow(s.lat - lat, 2) + Math.pow(s.lng - lng, 2);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        closestId = stopId;
+                    }
+                }
+            });
+            return closestId;
+        }
+
+        function setPlannerStopFromCoords(type) {
+            if (!customPinLatLng) return;
+            let nearestId = findNearestStopId(customPinLatLng[0], customPinLatLng[1]);
+            if (nearestId) {
+                setPlannerStop(nearestId, type);
             }
         }
 
@@ -521,8 +578,10 @@
             title.textContent = `${startStop.name} ➔ ${endStop.name}`;
 
             let validTrips = [];
+            let involvedRoutes = new Set();
             const targetDate = getTargetEvaluationDate();
 
+            // 1. Check for Direct Trips
             Object.keys(gtfsData.trips).forEach(tripId => {
                 let trip = gtfsData.trips[tripId];
                 if (isServiceActive(trip.service_id, targetDate)) {
@@ -538,27 +597,111 @@
                         let arrTime = stops[endIndex].arr || stops[endIndex].dep;
                         let finalStopEntry = stops[stops.length - 1];
                         let destName = (finalStopEntry && gtfsData.stops[finalStopEntry.stop_id]) ? gtfsData.stops[finalStopEntry.stop_id].name : 'Direct';
-                        validTrips.push({ depTime, arrTime, headsign: destName });
+                        validTrips.push({ type: 'direct', routeId: trip.route_id, depTime, arrTime, headsign: destName });
+                        involvedRoutes.add(trip.route_id);
                     }
                 }
             });
+
+            // 2. If no direct trips, check for 1-transfer connections through shared hub stops
+            if (validTrips.length === 0) {
+                let startRoutes = new Set();
+                let endRoutes = new Set();
+
+                Object.keys(gtfsData.trips).forEach(tripId => {
+                    let trip = gtfsData.trips[tripId];
+                    if (isServiceActive(trip.service_id, targetDate)) {
+                        let stops = gtfsData.stopTimes[tripId] || [];
+                        if (stops.some(s => s.stop_id === tripPlanner.startStopId)) startRoutes.add(trip.route_id);
+                        if (stops.some(s => s.stop_id === tripPlanner.endStopId)) endRoutes.add(trip.route_id);
+                    }
+                });
+
+                // Find shared stops (hubs) between start routes and end routes
+                Object.keys(gtfsData.stops).forEach(hubId => {
+                    if (hubId === tripPlanner.startStopId || hubId === tripPlanner.endStopId) return;
+                    let hubStop = gtfsData.stops[hubId];
+                    
+                    // Check if hub has incoming trip from start and outgoing trip to end
+                    // (Simplified check for matching service connections)
+                    let leg1Trips = [];
+                    let leg2Trips = [];
+
+                    Object.keys(gtfsData.trips).forEach(tripId => {
+                        let trip = gtfsData.trips[tripId];
+                        if (isServiceActive(trip.service_id, targetDate)) {
+                            let stops = gtfsData.stopTimes[tripId] || [];
+                            let sIdx = -1, hIdx = -1;
+                            for (let i = 0; i < stops.length; i++) {
+                                if (stops[i].stop_id === tripPlanner.startStopId) sIdx = i;
+                                if (stops[i].stop_id === hubId) hIdx = i;
+                            }
+                            if (sIdx !== -1 && hIdx !== -1 && sIdx < hIdx) {
+                                leg1Trips.push({ routeId: trip.route_id, dep: stops[sIdx].dep || stops[sIdx].arr, arr: stops[hIdx].arr || stops[hIdx].dep });
+                            }
+
+                            let eIdx = -1, h2Idx = -1;
+                            for (let i = 0; i < stops.length; i++) {
+                                if (stops[i].stop_id === hubId) h2Idx = i;
+                                if (stops[i].stop_id === tripPlanner.endStopId) eIdx = i;
+                            }
+                            if (h2Idx !== -1 && eIdx !== -1 && h2Idx < eIdx) {
+                                leg2Trips.push({ routeId: trip.route_id, dep: stops[h2Idx].dep || stops[h2Idx].arr, arr: stops[eIdx].arr || stops[eIdx].dep });
+                            }
+                        }
+                    });
+
+                    leg1Trips.forEach(l1 => {
+                        leg2Trips.forEach(l2 => {
+                            if (l2.dep >= l1.arr) { // Transfer is possible
+                                validTrips.push({
+                                    type: 'transfer',
+                                    hubName: hubStop.name,
+                                    route1: l1.routeId,
+                                    route2: l2.routeId,
+                                    depTime: l1.dep,
+                                    transferArr: l1.arr,
+                                    transferDep: l2.dep,
+                                    arrTime: l2.arr
+                                });
+                                involvedRoutes.add(l1.routeId);
+                                involvedRoutes.add(l2.routeId);
+                            }
+                        });
+                    });
+                });
+            }
 
             validTrips.sort((a, b) => a.depTime.localeCompare(b.depTime));
 
             resultsList.innerHTML = '';
             if (validTrips.length > 0) {
-                validTrips.forEach(vt => {
+                // Render involved routes on map simultaneously
+                if (involvedRoutes.size > 0) {
+                    renderRoutesMultiple(Array.from(involvedRoutes));
+                }
+
+                validTrips.slice(0, 10).forEach(vt => {
                     let li = document.createElement('li');
-                    li.innerHTML = `
-                        <div>
-                            <div class="planner-times">Dep: ${vt.depTime} &rarr; Arr: ${vt.arrTime}</div>
-                            <div style="font-size:0.6rem; color:#cbd5e1;">Final Stop: ${vt.headsign}</div>
-                        </div>
-                    `;
+                    if (vt.type === 'direct') {
+                        li.innerHTML = `
+                            <div>
+                                <div class="planner-times">Dep: ${vt.depTime} &rarr; Arr: ${vt.arrTime} (Direct)</div>
+                                <div style="font-size:0.6rem; color:#cbd5e1;">Route: ${gtfsData.routes[vt.routeId] || vt.routeId}</div>
+                            </div>
+                        `;
+                    } else {
+                        li.innerHTML = `
+                            <div>
+                                <div class="planner-times">${vt.depTime} &rarr; Hub: ${vt.hubName} (${vt.transferArr}) | Dep: ${vt.transferDep} &rarr; ${vt.arrTime}</div>
+                                <div style="font-size:0.6rem; color:#cbd5e1;">Transfer via Hub (${gtfsData.routes[vt.route1]} ➔ ${gtfsData.routes[vt.route2]})</div>
+                            </div>
+                        `;
+                    }
                     resultsList.appendChild(li);
                 });
             } else {
-                resultsList.innerHTML = `<li style="justify-content:center; color:#f43f5e;">No direct trips found between these stops for this schedule.</li>`;
+                resultsList.innerHTML = `<li style="justify-content:center; color:#f43f5e;">No direct or 1-transfer trips found between these points for this schedule.</li>`;
             }
 
             panel.classList.remove('hidden');
@@ -567,7 +710,9 @@
         function clearPlanner() {
             tripPlanner.startStopId = null;
             tripPlanner.endStopId = null;
+            customPinLatLng = null;
             document.getElementById('planner-panel').classList.add('hidden');
+            renderRoute();
         }
 
         function locateUser() {
