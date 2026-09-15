@@ -58,7 +58,7 @@
 
     <div class="floating-toggle-container">
         <button class="floating-btn" onclick="locateUser()" title="Locate GPS">🎯</button>
-        <button class="floating-btn" onclick="togglePlannerPanel()" title="Trip Planner">🚏</button>
+        <button class="floating-btn" onclick="findNearestRoute()" title="Find Nearest Route">🚏</button>
         <button class="floating-btn" onclick="toggleHeader()">▼</button>
     </div>
 
@@ -67,7 +67,7 @@
             <h1>Hele-On GTFS Viewer</h1>
             <div class="header-top-controls">
                 <button class="gps-btn" onclick="locateUser()" title="Locate GPS">🎯</button>
-                <button class="action-top-btn" onclick="togglePlannerPanel()" title="Trip Planner">🚏</button>
+                <button class="action-top-btn" onclick="findNearestRoute()" title="Find Nearest Route">🚏</button>
                 <button class="toggle-btn" onclick="toggleHeader()">▲</button>
             </div>
         </div>
@@ -509,6 +509,7 @@
             document.getElementById('planner-panel').classList.add('hidden');
         }
 
+        // Target button function: ONLY centers map on user GPS location
         function locateUser() {
             if (lastUserLatLng) {
                 map.setView(lastUserLatLng, 16);
@@ -516,6 +517,55 @@
                 navigator.geolocation.getCurrentPosition(position => {
                     lastUserLatLng = [position.coords.latitude, position.coords.longitude];
                     map.setView(lastUserLatLng, 16);
+                }, err => {
+                    alert("Unable to retrieve your location.");
+                }, { enableHighAccuracy: true, timeout: 5000 });
+            } else {
+                alert("Geolocation is not supported by your browser.");
+            }
+        }
+
+        // Bus stop button function: Finds nearest route/stop
+        function findNearestRoute() {
+            let executeFind = (latLng) => {
+                lastUserLatLng = latLng;
+                let closestStopId = null;
+                let minDist = Infinity;
+                Object.keys(gtfsData.stops).forEach(stopId => {
+                    let s = gtfsData.stops[stopId];
+                    if (!isNaN(s.lat) && !isNaN(s.lng)) {
+                        let dist = Math.pow(s.lat - latLng[0], 2) + Math.pow(s.lng - latLng[1], 2);
+                        if (dist < minDist) {
+                            minDist = dist;
+                            closestStopId = stopId;
+                        }
+                    }
+                });
+
+                if (closestStopId) {
+                    let matchedRouteId = null;
+                    for (let tripId in gtfsData.trips) {
+                        let trip = gtfsData.trips[tripId];
+                        let stops = gtfsData.stopTimes[tripId] || [];
+                        if (stops.some(st => st.stop_id === closestStopId)) {
+                            matchedRouteId = trip.route_id;
+                            break;
+                        }
+                    }
+
+                    if (matchedRouteId) {
+                        document.getElementById('route-select').value = matchedRouteId;
+                        renderRoute();
+                    }
+                }
+                map.setView(latLng, 15);
+            };
+
+            if (lastUserLatLng) {
+                executeFind(lastUserLatLng);
+            } else if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    executeFind([position.coords.latitude, position.coords.longitude]);
                 }, err => {
                     alert("Unable to retrieve your location.");
                 }, { enableHighAccuracy: true, timeout: 5000 });
