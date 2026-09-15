@@ -74,6 +74,7 @@
 
     <div class="floating-toggle-container">
         <button class="floating-btn" onclick="addRouteDropdown()" title="Add Route">+</button>
+        <button class="floating-btn" onclick="cycleDate()" id="floating-date-btn" title="Date">D</button>
         <button class="floating-btn" onclick="locateUser()" title="Locate GPS">🎯</button>
         <button class="floating-btn" onclick="refreshSelectedRoutes()" title="Refresh Routes">R</button>
         <button class="floating-btn" onclick="clearAllMarkers()" title="Clear Markers">C</button>
@@ -97,9 +98,6 @@
                 <button class="action-top-btn" onclick="removeRouteDropdown(this)" title="Remove Route" style="background:#475569; color:#f43f5e;">✕</button>
                 <div class="select-wrapper">
                     <select class="route-select" onchange="renderSelectedRoutes()"><option value="">Select a route...</option></select>
-                </div>
-                <div class="select-wrapper" style="flex: 0.8;">
-                    <select id="date-select" onchange="renderSelectedRoutes()"></select>
                 </div>
             </div>
         </div>
@@ -143,6 +141,9 @@
             start: { lat: null, lng: null, marker: null },
             end: { lat: null, lng: null, marker: null }
         };
+
+        let availableDates = [];
+        let currentDateIndex = 0;
 
         const shapeColors = ['#06b6d4', '#4ade80', '#38bdf8', '#22c55e', '#0284c7', '#10b981', '#0ea5e9', '#86efac'];
 
@@ -413,11 +414,57 @@
                     gtfsData.calendarDates[row.date][row.service_id] = parseInt(row.exception_type);
                 });
 
+                initDates();
                 populateControls();
             } catch (err) {
                 console.error("Error loading GTFS files:", err);
                 document.querySelectorAll('.route-select').forEach(el => el.innerHTML = '<option>Error loading text files</option>');
             }
+        }
+
+        function initDates() {
+            const today = new Date();
+            availableDates = [];
+            for (let i = 0; i < 7; i++) {
+                let d = new Date(today);
+                d.setDate(today.getDate() + i);
+
+                let year = d.getFullYear();
+                let month = String(d.getMonth() + 1).padStart(2, '0');
+                let day = String(d.getDate()).padStart(2, '0');
+                let dateStr = `${year}${month}${day}`;
+
+                let labelOptions = { weekday: 'short', month: 'short', day: 'numeric' };
+                let friendlyLabel = d.toLocaleDateString('en-US', labelOptions);
+                if (i === 0) friendlyLabel = `Today (${friendlyLabel})`;
+
+                availableDates.push({ value: dateStr, label: friendlyLabel });
+            }
+            currentDateIndex = 0;
+            updateDateButtonTitle();
+        }
+
+        function cycleDate() {
+            if (availableDates.length === 0) return;
+            currentDateIndex = (currentDateIndex + 1) % availableDates.length;
+            updateDateButtonTitle();
+            renderSelectedRoutes();
+        }
+
+        function updateDateButtonTitle() {
+            const btn = document.getElementById('floating-date-btn');
+            if (btn && availableDates[currentDateIndex]) {
+                btn.title = `Date: ${availableDates[currentDateIndex].label} (Click to change)`;
+            }
+        }
+
+        function getTargetEvaluationDate() {
+            if (availableDates.length === 0 || !availableDates[currentDateIndex]) return new Date();
+            const val = availableDates[currentDateIndex].value;
+            let year = parseInt(val.substring(0, 4));
+            let month = parseInt(val.substring(4, 6)) - 1;
+            let day = parseInt(val.substring(6, 8));
+            return new Date(year, month, day);
         }
 
         function populateControls() {
@@ -455,38 +502,6 @@
 
                 if (currentVal) select.value = currentVal;
             });
-
-            const dateSelect = document.getElementById('date-select');
-            if (dateSelect && dateSelect.options.length === 0) {
-                const today = new Date();
-                for (let i = 0; i < 7; i++) {
-                    let d = new Date(today);
-                    d.setDate(today.getDate() + i);
-
-                    let year = d.getFullYear();
-                    let month = String(d.getMonth() + 1).padStart(2, '0');
-                    let day = String(d.getDate()).padStart(2, '0');
-                    let dateStr = `${year}${month}${day}`;
-
-                    let labelOptions = { weekday: 'short', month: 'short', day: 'numeric' };
-                    let friendlyLabel = d.toLocaleDateString('en-US', labelOptions);
-                    if (i === 0) friendlyLabel = `Today (${friendlyLabel})`;
-
-                    let opt = document.createElement('option');
-                    opt.value = dateStr;
-                    opt.textContent = friendlyLabel;
-                    dateSelect.appendChild(opt);
-                }
-            }
-        }
-
-        function getTargetEvaluationDate() {
-            const val = document.getElementById('date-select').value;
-            if (!val || val.length !== 8) return new Date();
-            let year = parseInt(val.substring(0, 4));
-            let month = parseInt(val.substring(4, 6)) - 1;
-            let day = parseInt(val.substring(6, 8));
-            return new Date(year, month, day);
         }
 
         function isServiceActive(serviceId, targetDate) {
