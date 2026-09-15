@@ -143,6 +143,10 @@
             end: { lat: null, lng: null, marker: null }
         };
 
+        // State tracking for nearest route toggle button
+        let isNearestRouteActive = false;
+        let lastNearestRouteId = null;
+
         const shapeColors = ['#06b6d4', '#4ade80', '#38bdf8', '#22c55e', '#0284c7', '#10b981', '#0ea5e9', '#86efac'];
 
         map.on('click', function(e) {
@@ -167,7 +171,6 @@
         function setCustomPin(lat, lng, type) {
             map.closePopup();
             
-            // Check if this is the absolute first custom pin being placed (both start and end are currently null)
             const isFirst = (customPins.start.lat === null && customPins.end.lat === null);
 
             let pinColor = type === 'start' ? '#4ade80' : '#f43f5e';
@@ -544,6 +547,11 @@
         }
 
         function renderSelectedRoutes() {
+            const firstSelect = document.querySelector('.route-select');
+            if (firstSelect && isNearestRouteActive && firstSelect.value !== lastNearestRouteId) {
+                isNearestRouteActive = false;
+            }
+
             markersLayer.clearLayers();
 
             if (customPins.start.marker) markersLayer.addLayer(customPins.start.marker);
@@ -748,6 +756,19 @@
         }
 
         function findNearestRoute() {
+            const firstSelect = document.querySelector('.route-select');
+
+            // If already active, second press clears the selection instead of zooming
+            if (isNearestRouteActive) {
+                if (firstSelect) {
+                    firstSelect.value = "";
+                    renderSelectedRoutes();
+                }
+                isNearestRouteActive = false;
+                lastNearestRouteId = null;
+                return;
+            }
+
             let executeFind = (latLng) => {
                 lastUserLatLng = latLng;
                 let closestStopId = null;
@@ -774,12 +795,11 @@
                         }
                     }
 
-                    if (matchedRouteId) {
-                        const firstSelect = document.querySelector('.route-select');
-                        if (firstSelect) {
-                            firstSelect.value = matchedRouteId;
-                            renderSelectedRoutes();
-                        }
+                    if (matchedRouteId && firstSelect) {
+                        firstSelect.value = matchedRouteId;
+                        lastNearestRouteId = matchedRouteId;
+                        isNearestRouteActive = true;
+                        renderSelectedRoutes();
                     }
                 }
                 map.setView(latLng, 15);
