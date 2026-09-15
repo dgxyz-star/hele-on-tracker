@@ -105,7 +105,6 @@
 
         const map = L.map('map').setView([19.5750, -154.9600], 11);
 
-        // Standard OpenStreetMap Tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; OpenStreetMap'
@@ -579,6 +578,36 @@
             let involvedRoutes = new Set();
             const targetDate = getTargetEvaluationDate();
 
+            // Build a transfer lookup map (supports exact ID + transfers.txt + proximity hub matching)
+            let transferMap = {};
+            Object.keys(gtfsData.stops).forEach(id => {
+                transferMap[id] = new Set([id]);
+            });
+            gtfsData.transfers.forEach(t => {
+                if (t.from_stop_id && t.to_stop_id) {
+                    if (!transferMap[t.from_stop_id]) transferMap[t.from_stop_id] = new Set([t.from_stop_id]);
+                    transferMap[t.from_stop_id].add(t.to_stop_id);
+                }
+            });
+
+            // Also auto-group stops within ~150 meters as valid transfer hubs (e.g. multi-platform stations)
+            let stopEntries = Object.keys(gtfsData.stops);
+            for (let i = 0; i < stopEntries.length; i++) {
+                let id1 = stopEntries[i];
+                let s1 = gtfsData.stops[id1];
+                if (isNaN(s1.lat) || isNaN(s1.lng)) continue;
+                for (let j = i + 1; j < stopEntries.length; j++) {
+                    let id2 = stopEntries[j];
+                    let s2 = gtfsData.stops[id2];
+                    if (isNaN(s2.lat) || isNaN(s2.lng)) continue;
+                    // rough coordinate diff check (~150m)
+                    if (Math.abs(s1.lat - s2.lat) < 0.0015 && Math.abs(s1.lng - s2.lng) < 0.0015) {
+                        transferMap[id1].add(id2);
+                        transferMap[id2].add(id1);
+                    }
+                }
+            }
+
             // 1. Check for Direct Trips
             Object.keys(gtfsData.trips).forEach(tripId => {
                 let trip = gtfsData.trips[tripId];
@@ -601,59 +630,64 @@
                 }
             });
 
-            // 2. If no direct trips, check for 1-transfer connections through shared hub stops with forward temporal window (up to 2 hrs transfer window)
-            if (validTrips.length === 0) {
-                Object.keys(gtfsData.stops).forEach(hubId => {
-                    if (hubId === tripPlanner.startStopId || hubId === tripPlanner.endStopId) return;
-                    let hubStop = gtfsData.stops[hubId];
+            // 2. Check for 1-transfer connections across all routes using the transfer/proximity map
+            Object.keys(gtfsData.trips).forEach(trip1Id => {
+                let trip1 = gtfsData.trips[trip1Id];
+                if (!isServiceActive(trip1.service_id, targetDate)) return;
+                let stops1 = gtfsData.stopTimes[trip1Id] || [];
+                let sIdx = -1;
+                for (let i = 0; i < stops1.length; i++) {
+                    if (stops1[i].stop_id === tripPlanner.startStopId) { sIdx = i; break; }
+                }
+                if (sIdx === -1) return;
 
-                    let leg1Trips = [];
-                    let leg2Trips = [];
+                // Find all potential transfer points on trip 1 after sIdx
+                for (let i = sIdx + 1; i < stops1.length; i++) {
+                    let hub1Id = stops1[i].stop_id;
+                    let l1Dep = stops1[sIdx].dep || stops1[sIdx].arr;
+                    let l1Arr = stops1[i].arr || stops1[i].dep;
 
-                    Object.keys(gtfsData.trips).forEach(tripId => {
-                        let trip = gtfsData.trips[tripId];
-                        if (isServiceActive(trip.service_id, targetDate)) {
-                            let stops = gtfsData.stopTimes[tripId] || [];
-                            let sIdx = -1, hIdx = -1;
-                            for (let i = 0; i < stops.length; i++) {
-                                if (stops[i].stop_id === tripPlanner.startStopId) sIdx = i;
-                                if (stops[i].stop_id === hubId) hIdx = i;
-                            }
-                            if (sIdx !== -1 && hIdx !== -1 && sIdx < hIdx) {
-                                leg1Trips.push({ routeId: trip.route_id, dep: stops[sIdx].dep || stops[sIdx].arr, arr: stops[hIdx].arr || stops[hIdx].dep });
-                            }
+                    // Now check trip 2
+                    Object.keys(gtfsData.trips).forEach(trip2Id => {
+                        let trip2 = gtfsData.trips[trip2Id];
+                        if (trip1.route_id === trip2.route_id) return; // Must be a transfer to a different route
+                        if (!isServiceActive(trip2.service_id, targetDate)) return;
 
-                            let eIdx = -1, h2Idx = -1;
-                            for (let i = 0; i < stops.length; i++) {
-                                if (stops[i].stop_id === hubId) h2Idx = i;
-                                if (stops[i].stop_id === tripPlanner.endStopId) eIdx = i;
-                            }
-                            if (h2Idx !== -1 && eIdx !== -1 && h2Idx < eIdx) {
-                                leg2Trips.push({ routeId: trip.route_id, dep: stops[h2Idx].dep || stops[h2Idx].arr, arr: stops[eIdx].arr || stops[eIdx].dep });
+                        let stops2 = gtfsData.stopTimes[trip2Id] || [];
+                        let eIdx = -1;
+                        for (let k = 0; k < stops2.length; k++) {
+                            if (stops2[k].stop_id === tripPlanner.endStopId) { eIdx = k; break; }
+                        }
+                        if (eIdx === -1) return;
+
+                        // Check if any stop on trip 2 before eIdx connects to hub1Id via transferMap
+                        for (let j = 0; j < eIdx; j++) {
+                            let hub2Id = stops2[j].stop_id;
+                            // Check if hub1Id can transfer to hub2Id
+                            if (transferMap[hub1Id] && transferMap[hub1Id].has(hub2Id)) {
+                                let l2Dep = stops2[j].dep || stops2[j].arr;
+                                let l2Arr = stops2[eIdx].arr || stops2[eIdx].dep;
+
+                                // Allow transfer if bus 2 departs at or after bus 1 arrives (with up to 4 hours window)
+                                if (l2Dep >= l1Arr) {
+                                    validTrips.push({
+                                        type: 'transfer',
+                                        hubName: gtfsData.stops[hub1Id].name,
+                                        route1: trip1.route_id,
+                                        route2: trip2.route_id,
+                                        depTime: l1Dep,
+                                        transferArr: l1Arr,
+                                        transferDep: l2Dep,
+                                        arrTime: l2Arr
+                                    });
+                                    involvedRoutes.add(trip1.route_id);
+                                    involvedRoutes.add(trip2.route_id);
+                                }
                             }
                         }
                     });
-
-                    leg1Trips.forEach(l1 => {
-                        leg2Trips.forEach(l2 => {
-                            if (l2.dep >= l1.arr) {
-                                validTrips.push({
-                                    type: 'transfer',
-                                    hubName: hubStop.name,
-                                    route1: l1.routeId,
-                                    route2: l2.routeId,
-                                    depTime: l1.dep,
-                                    transferArr: l1.arr,
-                                    transferDep: l2.dep,
-                                    arrTime: l2.arr
-                                });
-                                involvedRoutes.add(l1.routeId);
-                                involvedRoutes.add(l2.routeId);
-                            }
-                        });
-                    });
-                });
-            }
+                }
+            });
 
             validTrips.sort((a, b) => a.depTime.localeCompare(b.depTime));
 
@@ -676,7 +710,7 @@
                         li.innerHTML = `
                             <div>
                                 <div class="planner-times">${vt.depTime} &rarr; Hub: ${vt.hubName} (${vt.transferArr}) | Dep: ${vt.transferDep} &rarr; ${vt.arrTime}</div>
-                                <div style="font-size:0.6rem; color:#cbd5e1;">Transfer via Hub (${gtfsData.routes[vt.route1]} ➔ ${gtfsData.routes[vt.route2]})</div>
+                                <div style="font-size:0.6rem; color:#cbd5e1;">Transfer via ${vt.hubName} (${gtfsData.routes[vt.route1]} ➔ ${gtfsData.routes[vt.route2]})</div>
                             </div>
                         `;
                     }
