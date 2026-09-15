@@ -12,12 +12,13 @@
         
         header { background: #1e293b; padding: 6px 8px; border-bottom: 1px solid #334155; display: flex; flex-direction: column; gap: 4px; z-index: 1000; transition: transform 0.3s ease; }
         header.collapsed { transform: translateY(-100%); position: absolute; width: 100%; pointer-events: none; }
-        header.collapsed .toggle-btn { pointer-events: auto; }
+        header.collapsed .header-top-controls { pointer-events: auto; }
 
         .header-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; position: relative; }
         h1 { font-size: 0.85rem; color: #38bdf8; text-align: left; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 2px; }
         
-        .toggle-btn { background: #334155; color: #38bdf8; border: 1px solid #475569; border-radius: 4px; padding: 4px 10px; font-size: 0.8rem; font-weight: bold; cursor: pointer; flex-shrink: 0; }
+        .header-top-controls { display: flex; gap: 4px; flex-shrink: 0; }
+        .toggle-btn, .gps-btn { background: #334155; color: #38bdf8; border: 1px solid #475569; border-radius: 4px; padding: 4px 8px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
         .controls-row { display: flex; gap: 4px; width: 100%; min-width: 0; }
         
@@ -26,8 +27,9 @@
         
         #map { flex: 1; width: 100%; background: #0f172a; z-index: 1; }
         
-        .floating-toggle-btn { position: absolute; top: 6px; right: 8px; z-index: 1001; background: #1e293b; color: #38bdf8; border: 1px solid #475569; border-radius: 4px; padding: 6px 12px; font-size: 0.8rem; font-weight: bold; display: none; box-shadow: 0 2px 6px rgba(0,0,0,0.5); cursor: pointer; }
-        body.header-is-collapsed .floating-toggle-btn { display: block; }
+        .floating-toggle-container { position: absolute; top: 6px; right: 8px; z-index: 1001; display: none; gap: 4px; }
+        body.header-is-collapsed .floating-toggle-container { display: flex; }
+        .floating-btn { background: #1e293b; color: #38bdf8; border: 1px solid #475569; border-radius: 4px; padding: 6px 10px; font-size: 0.8rem; font-weight: bold; box-shadow: 0 2px 6px rgba(0,0,0,0.5); cursor: pointer; }
 
         /* Trip Planner Panel */
         #planner-panel { position: absolute; bottom: 0; left: 0; width: 100%; background: #1e293b; border-top: 2px solid #38bdf8; z-index: 1000; padding: 10px; max-height: 45vh; display: flex; flex-direction: column; box-shadow: 0 -4px 12px rgba(0,0,0,0.5); transition: transform 0.3s ease; }
@@ -54,12 +56,18 @@
 </head>
 <body>
 
-    <button class="floating-toggle-btn" onclick="toggleHeader()">▼</button>
+    <div class="floating-toggle-container">
+        <button class="floating-btn" onclick="locateUser()" title="Locate GPS">🎯</button>
+        <button class="floating-btn" onclick="toggleHeader()">▼</button>
+    </div>
 
     <header id="main-header">
         <div class="header-top">
             <h1>Hele-On GTFS Viewer</h1>
-            <button class="toggle-btn" onclick="toggleHeader()">▲</button>
+            <div class="header-top-controls">
+                <button class="gps-btn" onclick="locateUser()" title="Locate GPS">🎯</button>
+                <button class="toggle-btn" onclick="toggleHeader()">▲</button>
+            </div>
         </div>
         <div class="controls-row">
             <div class="select-wrapper">
@@ -104,11 +112,13 @@
 
         let markersLayer = L.layerGroup().addTo(map);
         let userMarker = null;
+        let lastUserLatLng = null;
 
         let gtfsData = { routes: {}, trips: {}, stops: {}, stopTimes: {}, shapes: {} };
         let tripPlanner = { startStopId: null, endStopId: null };
 
-        const shapeColors = ['#38bdf8', '#4ade80', '#f43f5e', '#fbbf24', '#c084fc', '#2dd4bf', '#fb7185', '#818cf8'];
+        // High-contrast shape colors (Cyan, Red, Amber, Magenta, Purple, Teal) avoiding green/blue clashes
+        const shapeColors = ['#06b6d4', '#f43f5e', '#fbbf24', '#ec4899', '#8b5cf6', '#14b8a6', '#f97316', '#6366f1'];
 
         function parseCSV(text) {
             let lines = text.trim().split(/\r\n|\n/);
@@ -274,7 +284,7 @@
             });
 
             let bearing = (!closestPt || !nextPt) ? 0 : calculateBearing(closestPt.lat, closestPt.lng, nextPt.lat, nextPt.lng);
-            let color = (matchedShapeId && shapeColorMap[matchedShapeId]) ? shapeColorMap[matchedShapeId] : '#38bdf8';
+            let color = (matchedShapeId && shapeColorMap[matchedShapeId]) ? shapeColorMap[matchedShapeId] : '#06b6d4';
             return { bearing, color };
         }
 
@@ -330,7 +340,6 @@
                 }
             });
 
-            // Assign unique colors per shape ID with lowered opacity for stacking visibility
             let shapeColorMap = {};
             let colorIdx = 0;
             activeShapes.forEach(shapeId => {
@@ -347,7 +356,7 @@
                     let polyline = L.polyline(lineCoords, { 
                         color: shapeColorMap[shapeId], 
                         weight: 5, 
-                        opacity: 0.55 // Lowered opacity so overlapping paths blend cleanly
+                        opacity: 0.55 
                     });
                     markersLayer.addLayer(polyline);
                     points.forEach(p => latLngs.push([p.lat, p.lng]));
@@ -489,15 +498,29 @@
             document.getElementById('planner-panel').classList.add('hidden');
         }
 
+        function locateUser() {
+            if (lastUserLatLng) {
+                map.setView(lastUserLatLng, 16);
+            } else if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    lastUserLatLng = [position.coords.latitude, position.coords.longitude];
+                    map.setView(lastUserLatLng, 16);
+                }, err => {
+                    alert("Unable to retrieve your location.");
+                }, { enableHighAccuracy: true, timeout: 5000 });
+            } else {
+                alert("Geolocation is not supported by your browser.");
+            }
+        }
+
         if ("geolocation" in navigator) {
             navigator.geolocation.watchPosition(position => {
-                const userLat = position.coords.latitude;
-                const userLng = position.coords.longitude;
+                lastUserLatLng = [position.coords.latitude, position.coords.longitude];
                 if (!userMarker) {
                     let userIcon = L.divIcon({ className: 'user-loc-dot', iconSize: [10, 10], iconAnchor: [5, 5] });
-                    userMarker = L.marker([userLat, userLng], { icon: userIcon }).addTo(map).bindPopup("<b>You are here</b>");
+                    userMarker = L.marker(lastUserLatLng, { icon: userIcon }).addTo(map).bindPopup("<b>You are here</b>");
                 } else {
-                    userMarker.setLatLng([userLat, userLng]);
+                    userMarker.setLatLng(lastUserLatLng);
                 }
             }, null, { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 });
         }
