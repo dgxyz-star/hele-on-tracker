@@ -18,7 +18,7 @@
         h1 { font-size: 0.85rem; color: #06b6d4; text-align: left; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 2px; }
 
         .header-top-controls { display: flex; gap: 4px; flex-shrink: 0; }
-        .toggle-btn, .gps-btn, .action-top-btn { background: #334155; color: #06b6d4; border: 1px solid #475569; border-radius: 4px; padding: 4px 8px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .toggle-btn, .gps-btn, .refresh-btn, .action-top-btn { background: #334155; color: #06b6d4; border: 1px solid #475569; border-radius: 4px; padding: 4px 8px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
         .controls-row { display: flex; gap: 4px; width: 100%; min-width: 0; }
 
@@ -69,6 +69,7 @@
 
     <div class="floating-toggle-container">
         <button class="floating-btn" onclick="locateUser()" title="Locate GPS">🎯</button>
+        <button class="floating-btn" onclick="refreshSelectedRoutes()" title="Refresh Routes">R</button>
         <button class="floating-btn" onclick="findNearestRoute()" title="Find Nearest Route">🚏</button>
         <button class="floating-btn" onclick="toggleHeader()">▼</button>
     </div>
@@ -78,6 +79,7 @@
             <h1>Hele-On GTFS Viewer</h1>
             <div class="header-top-controls">
                 <button class="gps-btn" onclick="locateUser()" title="Locate GPS">🎯</button>
+                <button class="refresh-btn" onclick="refreshSelectedRoutes()" title="Refresh Routes">R</button>
                 <button class="action-top-btn" onclick="findNearestRoute()" title="Find Nearest Route">🚏</button>
                 <button class="toggle-btn" onclick="toggleHeader()">▲</button>
             </div>
@@ -161,7 +163,6 @@
             let pinColor = type === 'start' ? '#4ade80' : '#f43f5e';
             let labelText = type === 'start' ? 'A' : 'B';
 
-            // Classic Map Pin SVG Icon with inner letter badge
             let pinHtml = `
                 <div class="map-pin-container">
                     <svg width="32" height="42" viewBox="0 0 24 36" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -310,6 +311,11 @@
 
         function removeRouteDropdown(btn) {
             btn.closest('.controls-row').remove();
+            renderSelectedRoutes();
+        }
+
+        function refreshSelectedRoutes() {
+            populateControls();
             renderSelectedRoutes();
         }
 
@@ -580,10 +586,6 @@
             let bearing = (!closestPt || !nextPt) ? 0 : calculateBearing(closestPt.lat, closestPt.lng, nextPt.lat, nextPt.lng);
             let color = (matchedShapeId && shapeColorMap[matchedShapeId]) ? shapeColorMap[matchedShapeId] : '#06b6d4';
             return { bearing, color };
-        }
-
-        function renderRoute() {
-            renderSelectedRoutes();
         }
 
         function renderSelectedRoutes() {
