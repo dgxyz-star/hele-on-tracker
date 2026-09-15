@@ -51,8 +51,12 @@
         .leaflet-popup-content { font-size: 0.75rem; line-height: 1.3; margin: 8px; max-width: 260px; }
         .popup-stop-name { font-weight: bold; color: #06b6d4; font-size: 0.8rem; margin-bottom: 2px; display: block; }
         .popup-stop-meta { font-size: 0.65rem; color: #94a3b8; margin-bottom: 6px; }
+        
+        /* Universal scroll container for all stop schedules */
+        .popup-scroll-container { max-height: 240px; overflow-y: auto; margin-top: 4px; padding-right: 4px; }
+        
         .popup-times-title { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 6px; margin-bottom: 2px; font-weight: bold; border-top: 1px solid #334155; padding-top: 4px; }
-        .popup-times-list { list-style-type: none; padding-left: 0; max-height: 100px; overflow-y: auto; }
+        .popup-times-list { list-style-type: none; padding-left: 0; }
         .popup-times-list li { background: #0f172a; padding: 3px 6px; margin-bottom: 2px; border-radius: 3px; font-size: 0.65rem; display: flex; justify-content: space-between; gap: 4px; align-items: center; }
         .time-group { font-family: monospace; font-weight: bold; white-space: nowrap; }
 
@@ -460,8 +464,8 @@
             });
 
             const targetDate = getTargetEvaluationDate();
-            let activeStopsMap = {}; // stopId -> { routeId: { destName: [times] } }
-            let activeShapesMap = new Map(); // shapeId -> routeId
+            let activeStopsMap = {}; 
+            let activeShapesMap = new Map(); 
 
             activeRouteIds.forEach(routeId => {
                 Object.keys(gtfsData.trips).forEach(tripId => {
@@ -573,7 +577,9 @@
                             <button class="btn-action" onclick="setPlannerStop('${stopId}', 'start')">📍 Set Start</button>
                             <button class="btn-action" onclick="setPlannerStop('${stopId}', 'end')">🏁 Set End</button>
                         </div>
-                        ${schedulesHtml}
+                        <div class="popup-scroll-container">
+                            ${schedulesHtml}
+                        </div>
                     `;
 
                     let svgArrowIcon = L.divIcon({
