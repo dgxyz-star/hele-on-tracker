@@ -75,6 +75,9 @@
             <div class="select-wrapper">
                 <select id="route-select" onchange="renderRoute()"><option value="">Loading routes...</option></select>
             </div>
+            <div class="select-wrapper" style="flex: 0.8;">
+                <select id="date-select" onchange="renderRoute()"></select>
+            </div>
         </div>
     </header>
 
@@ -111,7 +114,7 @@
         let lastUserLatLng = null;
         let customPinLatLng = null;
 
-        let gtfsData = { routes: {}, trips: {}, stops: {}, stopTimes: {}, shapes: {} };
+        let gtfsData = { routes: {}, trips: {}, stops: {}, stopTimes: {}, shapes: {}, calendar: {}, calendarDates: {} };
         let tripPlanner = { startStopId: null, endStopId: null };
 
         const shapeColors = ['#06b6d4', '#4ade80', '#38bdf8', '#22c55e', '#0284c7', '#10b981', '#0ea5e9', '#86efac'];
@@ -159,19 +162,16 @@
             return (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
         }
 
-        function getCurrentClockSeconds() {
-            const now = new Date();
-            return now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-        }
-
         async function loadGTFSData() {
             try {
-                const [routesText, stopsText, tripsText, stopTimesText, shapesText] = await Promise.all([
+                const [routesText, stopsText, tripsText, stopTimesText, shapesText, calendarText, calendarDatesText] = await Promise.all([
                     fetch('routes.txt').then(r => r.text()),
                     fetch('stops.txt').then(r => r.text()),
                     fetch('trips.txt').then(r => r.text()),
                     fetch('stop_times.txt').then(r => r.text()),
-                    fetch('shapes.txt').then(r => r.text())
+                    fetch('shapes.txt').then(r => r.text()),
+                    fetch('calendar.txt').then(r => r.text()).catch(() => ''),
+                    fetch('calendar_dates.txt').then(r => r.text()).catch(() => '')
                 ]);
 
                 parseCSV(routesText).forEach(row => {
@@ -192,6 +192,7 @@
                 parseCSV(tripsText).forEach(row => {
                     gtfsData.trips[row.trip_id] = {
                         route_id: row.route_id,
+                        service_id: row.service_id,
                         shape_id: row.shape_id,
                         headsign: row.trip_headsign || ''
                     };
@@ -229,6 +230,29 @@
                     gtfsData.shapes[sId].sort((a, b) => a.seq - b.seq);
                 });
 
+                parseCSV(calendarText).forEach(row => {
+                    gtfsData.calendar[row.service_id] = {
+                        startDate: row.start_date,
+                        endDate: row.end_date,
+                        days: [
+                            parseInt(row.sunday),
+                            parseInt(row.monday),
+                            parseInt(row.tuesday),
+                            parseInt(row.wednesday),
+                            parseInt(row.thursday),
+                            parseInt(row.friday),
+                            parseInt(row.saturday)
+                        ]
+                    };
+                });
+
+                parseCSV(calendarDatesText).forEach(row => {
+                    if (!gtfsData.calendarDates[row.date]) {
+                        gtfsData.calendarDates[row.date] = {};
+                    }
+                    gtfsData.calendarDates[row.date][row.service_id] = parseInt(row.exception_type);
+                });
+
                 populateControls();
             } catch (err) {
                 console.error("Error loading GTFS files:", err);
@@ -250,9 +274,64 @@
                 routeSelect.appendChild(opt);
             });
 
+            const dateSelect = document.getElementById('date-select');
+            dateSelect.innerHTML = '';
+
+            const today = new Date();
+            for (let i = 0; i < 7; i++) {
+                let d = new Date(today);
+                d.setDate(today.getDate() + i);
+
+                let year = d.getFullYear();
+                let month = String(d.getMonth() + 1).padStart(2, '0');
+                let day = String(d.getDate()).padStart(2, '0');
+                let dateStr = `${year}${month}${day}`;
+
+                let labelOptions = { weekday: 'short', month: 'short', day: 'numeric' };
+                let friendlyLabel = d.toLocaleDateString('en-US', labelOptions);
+                if (i === 0) friendlyLabel = `Today (${friendlyLabel})`;
+
+                let opt = document.createElement('option');
+                opt.value = dateStr;
+                opt.textContent = friendlyLabel;
+                dateSelect.appendChild(opt);
+            }
+
             if (sortedRoutes.length > 0) {
                 renderRoute();
             }
+        }
+
+        function getTargetEvaluationDate() {
+            const val = document.getElementById('date-select').value;
+            if (!val || val.length !== 8) return new Date();
+            let year = parseInt(val.substring(0, 4));
+            let month = parseInt(val.substring(4, 6)) - 1;
+            let day = parseInt(val.substring(6, 8));
+            return new Date(year, month, day);
+        }
+
+        function isServiceActive(serviceId, targetDate) {
+            const year = targetDate.getFullYear();
+            const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+            const day = String(targetDate.getDate()).padStart(2, '0');
+            const dateStr = `${year}${month}${day}`;
+
+            if (gtfsData.calendarDates[dateStr] && gtfsData.calendarDates[dateStr][serviceId] !== undefined) {
+                return gtfsData.calendarDates[dateStr][serviceId] === 1;
+            }
+
+            const rule = gtfsData.calendar[serviceId];
+            if (!rule) {
+                return Object.keys(gtfsData.calendar).length === 0;
+            }
+
+            if (dateStr < rule.startDate || dateStr > rule.endDate) {
+                return false;
+            }
+
+            const dayOfWeek = targetDate.getDay();
+            return rule.days[dayOfWeek] === 1;
         }
 
         function calculateBearing(lat1, lon1, lat2, lon2) {
@@ -299,6 +378,7 @@
 
         function renderRoutesMultiple(routeIdsArray) {
             markersLayer.clearLayers();
+            const targetDate = getTargetEvaluationDate();
             let activeStopsMap = {};
             let activeShapes = new Set();
             let targetRouteSet = new Set(routeIdsArray);
@@ -306,27 +386,29 @@
             Object.keys(gtfsData.trips).forEach(tripId => {
                 let trip = gtfsData.trips[tripId];
                 if (targetRouteSet.has(trip.route_id)) {
-                    if (trip.shape_id) activeShapes.add(trip.shape_id);
-                    let tripStops = gtfsData.stopTimes[tripId];
-                    if (tripStops && tripStops.length > 0) {
-                        let finalStopEntry = tripStops[tripStops.length - 1];
-                        let finalStopName = (finalStopEntry && gtfsData.stops[finalStopEntry.stop_id]) ? gtfsData.stops[finalStopEntry.stop_id].name : (trip.headsign || 'Direct');
-                        let finalArrTime = finalStopEntry ? (finalStopEntry.arr || finalStopEntry.dep) : '';
+                    if (isServiceActive(trip.service_id, targetDate)) {
+                        if (trip.shape_id) activeShapes.add(trip.shape_id);
+                        let tripStops = gtfsData.stopTimes[tripId];
+                        if (tripStops && tripStops.length > 0) {
+                            let finalStopEntry = tripStops[tripStops.length - 1];
+                            let finalStopName = (finalStopEntry && gtfsData.stops[finalStopEntry.stop_id]) ? gtfsData.stops[finalStopEntry.stop_id].name : (trip.headsign || 'Direct');
+                            let finalArrTime = finalStopEntry ? (finalStopEntry.arr || finalStopEntry.dep) : '';
 
-                        tripStops.forEach(st => {
-                            if (!activeStopsMap[st.stop_id]) activeStopsMap[st.stop_id] = {};
-                            if (!activeStopsMap[st.stop_id][finalStopName]) activeStopsMap[st.stop_id][finalStopName] = [];
+                            tripStops.forEach(st => {
+                                if (!activeStopsMap[st.stop_id]) activeStopsMap[st.stop_id] = {};
+                                if (!activeStopsMap[st.stop_id][finalStopName]) activeStopsMap[st.stop_id][finalStopName] = [];
 
-                            let localTime = st.dep || st.arr;
-                            let localLabel = st.dep ? 'D' : 'A';
-                            if (localTime) {
-                                activeStopsMap[st.stop_id][finalStopName].push({
-                                    sortTime: localTime,
-                                    localText: `${localLabel} ${localTime}`,
-                                    destText: finalArrTime ? `A ${finalArrTime}` : ''
-                                });
-                            }
-                        });
+                                let localTime = st.dep || st.arr;
+                                let localLabel = st.dep ? 'D' : 'A';
+                                if (localTime) {
+                                    activeStopsMap[st.stop_id][finalStopName].push({
+                                        sortTime: localTime,
+                                        localText: `${localLabel} ${localTime}`,
+                                        destText: finalArrTime ? `A ${finalArrTime}` : ''
+                                    });
+                                }
+                            });
+                        }
                     }
                 }
             });
@@ -477,32 +559,31 @@
 
             let validTrips = [];
             let involvedRoutes = new Set();
-            const currentSeconds = getCurrentClockSeconds();
+            const targetDate = getTargetEvaluationDate();
 
-            // 1. Direct Trips Check (Filtering for future clock time)
+            // 1. Direct Trips Check
             Object.keys(gtfsData.trips).forEach(tripId => {
                 let trip = gtfsData.trips[tripId];
-                let stops = gtfsData.stopTimes[tripId] || [];
-                let startIndex = -1, endIndex = -1;
-                for (let i = 0; i < stops.length; i++) {
-                    if (stops[i].stop_id === tripPlanner.startStopId) startIndex = i;
-                    if (stops[i].stop_id === tripPlanner.endStopId) endIndex = i;
-                }
+                if (isServiceActive(trip.service_id, targetDate)) {
+                    let stops = gtfsData.stopTimes[tripId] || [];
+                    let startIndex = -1, endIndex = -1;
+                    for (let i = 0; i < stops.length; i++) {
+                        if (stops[i].stop_id === tripPlanner.startStopId) startIndex = i;
+                        if (stops[i].stop_id === tripPlanner.endStopId) endIndex = i;
+                    }
 
-                if (startIndex !== -1 && endIndex !== -1 && startIndex < endIndex) {
-                    let depTimeStr = stops[startIndex].dep || stops[startIndex].arr;
-                    let arrTimeStr = stops[endIndex].arr || stops[endIndex].dep;
-                    let depSec = timeToSeconds(depTimeStr);
-
-                    if (depSec >= currentSeconds) {
+                    if (startIndex !== -1 && endIndex !== -1 && startIndex < endIndex) {
+                        let depTimeStr = stops[startIndex].dep || stops[startIndex].arr;
+                        let arrTimeStr = stops[endIndex].arr || stops[endIndex].dep;
                         let finalStopEntry = stops[stops.length - 1];
                         let destName = (finalStopEntry && gtfsData.stops[finalStopEntry.stop_id]) ? gtfsData.stops[finalStopEntry.stop_id].name : 'Direct';
+                        
                         validTrips.push({
                             type: 'direct',
                             routeId: trip.route_id,
                             depTime: depTimeStr,
                             arrTime: arrTimeStr,
-                            depSec: depSec,
+                            sortSec: timeToSeconds(depTimeStr),
                             headsign: destName
                         });
                         involvedRoutes.add(trip.route_id);
@@ -514,6 +595,7 @@
             let stopToRoutes = {};
             Object.keys(gtfsData.trips).forEach(tripId => {
                 let trip = gtfsData.trips[tripId];
+                if (!isServiceActive(trip.service_id, targetDate)) return;
                 let stops = gtfsData.stopTimes[tripId] || [];
                 stops.forEach(st => {
                     if (!stopToRoutes[st.stop_id]) stopToRoutes[st.stop_id] = new Set();
@@ -555,6 +637,7 @@
 
             Object.keys(gtfsData.trips).forEach(trip1Id => {
                 let trip1 = gtfsData.trips[trip1Id];
+                if (!isServiceActive(trip1.service_id, targetDate)) return;
                 let stops1 = gtfsData.stopTimes[trip1Id] || [];
                 let sIdx = -1;
                 for (let i = 0; i < stops1.length; i++) {
@@ -563,8 +646,6 @@
                 if (sIdx === -1) return;
 
                 let l1Dep = stops1[sIdx].dep || stops1[sIdx].arr;
-                let depSec = timeToSeconds(l1Dep);
-                if (depSec < currentSeconds) return;
 
                 for (let i = sIdx + 1; i < stops1.length; i++) {
                     let hub1Id = stops1[i].stop_id;
@@ -575,6 +656,7 @@
                     Object.keys(gtfsData.trips).forEach(trip2Id => {
                         let trip2 = gtfsData.trips[trip2Id];
                         if (trip1.route_id === trip2.route_id) return;
+                        if (!isServiceActive(trip2.service_id, targetDate)) return;
 
                         let stops2 = gtfsData.stopTimes[trip2Id] || [];
                         let eIdx = -1;
@@ -595,7 +677,7 @@
                                     route1: trip1.route_id,
                                     route2: trip2.route_id,
                                     depTime: l1Dep,
-                                    depSec: depSec,
+                                    sortSec: timeToSeconds(l1Dep),
                                     transferArr: l1Arr,
                                     transferDep: l2Dep,
                                     arrTime: l2Arr
@@ -608,8 +690,8 @@
                 }
             });
 
-            // Sort strictly by the nearest upcoming clock time
-            validTrips.sort((a, b) => a.depSec - b.depSec);
+            // Sort chronologically by time
+            validTrips.sort((a, b) => a.sortSec - b.sortSec);
 
             resultsList.innerHTML = '';
             if (validTrips.length > 0) {
@@ -637,7 +719,7 @@
                     resultsList.appendChild(li);
                 });
             } else {
-                resultsList.innerHTML = `<li style="justify-content:center; color:#f43f5e;">No upcoming trips found matching current clock time.</li>`;
+                resultsList.innerHTML = `<li style="justify-content:center; color:#f43f5e;">No trips found for the selected date.</li>`;
             }
 
             panel.classList.remove('hidden');
