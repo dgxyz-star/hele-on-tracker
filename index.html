@@ -75,12 +75,8 @@
             <div class="select-wrapper">
                 <select id="route-select" onchange="renderRoute()"><option value="">Loading routes...</option></select>
             </div>
-            <div class="select-wrapper" style="flex: 0.6;">
-                <select id="day-select" onchange="renderRoute()">
-                    <option value="weekday">Mon - Fri</option>
-                    <option value="saturday">Saturday</option>
-                    <option value="sunday">Sunday / Holiday</option>
-                </select>
+            <div class="select-wrapper" style="flex: 0.8;">
+                <select id="date-select" onchange="renderRoute()"></select>
             </div>
         </div>
     </header>
@@ -257,63 +253,17 @@
                     gtfsData.calendarDates[row.date][row.service_id] = parseInt(row.exception_type);
                 });
 
-                populateRouteDropdown();
+                populateControls();
             } catch (err) {
                 console.error("Error loading GTFS files:", err);
                 document.getElementById('route-select').innerHTML = '<option>Error loading text files</option>';
             }
         }
 
-        // Precise Calendar Engine Evaluation Function
-        function getTargetEvaluationDate() {
-            const dayType = document.getElementById('day-select').value;
-            const now = new Date();
-            const currentDayOfWeek = now.getDay(); // 0: Sun, 1: Mon, ..., 6: Sat
-
-            let targetDayOffset = 0;
-            if (dayType === 'weekday') {
-                if (currentDayOfWeek === 0) targetDayOffset = 1; // If Sunday, pick Monday
-                else if (currentDayOfWeek === 6) targetDayOffset = 2; // If Saturday, pick Monday
-            } else if (dayType === 'saturday') {
-                targetDayOffset = (6 - currentDayOfWeek + 7) % 7;
-            } else if (dayType === 'sunday') {
-                targetDayOffset = (0 - currentDayOfWeek + 7) % 7;
-            }
-
-            const targetDate = new Date(now);
-            targetDate.setDate(now.getDate() + targetDayOffset);
-            return targetDate;
-        }
-
-        function isServiceActive(serviceId, targetDate) {
-            const year = targetDate.getFullYear();
-            const month = String(targetDate.getMonth() + 1).padStart(2, '0');
-            const day = String(targetDate.getDate()).padStart(2, '0');
-            const dateStr = `${year}${month}${day}`;
-
-            // 1. Check calendar_dates exceptions first
-            if (gtfsData.calendarDates[dateStr] && gtfsData.calendarDates[dateStr][serviceId] !== undefined) {
-                return gtfsData.calendarDates[dateStr][serviceId] === 1;
-            }
-
-            // 2. Check calendar weekly rules
-            const rule = gtfsData.calendar[serviceId];
-            if (!rule) {
-                // Fallback if service_id is missing from calendar.txt entirely
-                return Object.keys(gtfsData.calendar).length === 0;
-            }
-
-            if (dateStr < rule.startDate || dateStr > rule.endDate) {
-                return false;
-            }
-
-            const dayOfWeek = targetDate.getDay();
-            return rule.days[dayOfWeek] === 1;
-        }
-
-        function populateRouteDropdown() {
-            const select = document.getElementById('route-select');
-            select.innerHTML = '';
+        function populateControls() {
+            // 1. Populate Routes Dropdown
+            const routeSelect = document.getElementById('route-select');
+            routeSelect.innerHTML = '';
             
             let sortedRoutes = Object.keys(gtfsData.routes).map(id => ({ id, name: gtfsData.routes[id] }));
             sortedRoutes.sort((a, b) => a.name.localeCompare(b.name));
@@ -322,15 +272,71 @@
                 let opt = document.createElement('option');
                 opt.value = r.id;
                 opt.textContent = r.name;
-                select.appendChild(opt);
+                routeSelect.appendChild(opt);
             });
 
-            const jsDay = new Date().getDay();
-            document.getElementById('day-select').value = (jsDay === 0) ? 'sunday' : (jsDay === 6) ? 'saturday' : 'weekday';
+            // 2. Populate Date Dropdown (Next 7 days for precise day-by-day checking)
+            const dateSelect = document.getElementById('date-select');
+            dateSelect.innerHTML = '';
+            
+            const today = new Date();
+            for (let i = 0; i < 7; i++) {
+                let d = new Date(today);
+                d.setDate(today.getDate() + i);
+                
+                let year = d.getFullYear();
+                let month = String(d.getMonth() + 1).padStart(2, '0');
+                let day = String(d.getDate()).padStart(2, '0');
+                let dateStr = `${year}${month}${day}`;
+
+                let labelOptions = { weekday: 'short', month: 'short', day: 'numeric' };
+                let friendlyLabel = d.toLocaleDateString('en-US', labelOptions);
+                if (i === 0) friendlyLabel = `Today (${friendlyLabel})`;
+
+                let opt = document.createElement('option');
+                opt.value = dateStr;
+                opt.textContent = friendlyLabel;
+                dateSelect.appendChild(opt);
+            }
 
             if (sortedRoutes.length > 0) {
                 renderRoute();
             }
+        }
+
+        // Get exact target date object from dropdown value (YYYYMMDD)
+        function getTargetEvaluationDate() {
+            const val = document.getElementById('date-select').value;
+            if (!val || val.length !== 8) return new Date();
+            let year = parseInt(val.substring(0, 4));
+            let month = parseInt(val.substring(4, 6)) - 1;
+            let day = parseInt(val.substring(6, 8));
+            return new Date(year, month, day);
+        }
+
+        function isServiceActive(serviceId, targetDate) {
+            const year = targetDate.getFullYear();
+            const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+            const day = String(targetDate.getDate()).padStart(2, '0');
+            const dateStr = `${year}${month}${day}`;
+
+            // 1. Check calendar_dates exceptions first (overrides weekly rules)
+            if (gtfsData.calendarDates[dateStr] && gtfsData.calendarDates[dateStr][serviceId] !== undefined) {
+                return gtfsData.calendarDates[dateStr][serviceId] === 1;
+            }
+
+            // 2. Check calendar weekly rules
+            const rule = gtfsData.calendar[serviceId];
+            if (!rule) {
+                return Object.keys(gtfsData.calendar).length === 0;
+            }
+
+            if (dateStr < rule.startDate || dateStr > rule.endDate) {
+                return false;
+            }
+
+            const dayOfWeek = targetDate.getDay(); // 0: Sun, 1: Mon, etc.
+            return rule.days[dayOfWeek] === 1;
         }
 
         function calculateBearing(lat1, lon1, lat2, lon2) {
