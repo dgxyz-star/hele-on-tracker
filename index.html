@@ -18,9 +18,9 @@
         h1 { font-size: 0.85rem; color: #06b6d4; text-align: left; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 2px; }
         
         .header-top-controls { display: flex; gap: 4px; flex-shrink: 0; }
-        .toggle-btn, .gps-btn { background: #334155; color: #06b6d4; border: 1px solid #475569; border-radius: 4px; padding: 4px 8px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .toggle-btn, .gps-btn, .nearest-route-btn { background: #334155; color: #06b6d4; border: 1px solid #475569; border-radius: 4px; padding: 4px 8px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
-        .controls-row { display: flex; gap: 4px; width: 100%; min-width: 0; }
+        .controls-row { display: flex; gap: 4px; width: 100%; min-width: 0; align-items: center; }
         
         .select-wrapper { flex: 1; min-width: 0; position: relative; }
         select { width: 100%; min-width: 0; background: #334155; color: #fff; border: 1px solid #475569; padding: 5px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
@@ -73,6 +73,8 @@
             <div class="select-wrapper">
                 <select id="route-select" onchange="renderRoute()"><option value="">Loading routes...</option></select>
             </div>
+            <!-- Icon-only button to find closest route to GPS location -->
+            <button class="nearest-route-btn" onclick="selectNearestRoute()" title="Find Nearest Route">🚏</button>
             <div class="select-wrapper" style="flex: 0.6;">
                 <select id="day-select" onchange="renderRoute()">
                     <option value="weekday">Mon - Fri</option>
@@ -412,6 +414,65 @@
 
             if (latLngs.length > 1) {
                 map.fitBounds(latLngs, { padding: [30, 30] });
+            }
+        }
+
+        // --- NEW: Find Nearest Route Function ---
+        function selectNearestRoute() {
+            let executeSelection = (lat, lng) => {
+                let closestRouteId = null;
+                let minDistance = Infinity;
+
+                // Map route_id to a collection of all shape points belonging to that route
+                let routePointsMap = {};
+                
+                Object.keys(gtfsData.trips).forEach(tripId => {
+                    let trip = gtfsData.trips[tripId];
+                    if (trip && trip.route_id && trip.shape_id) {
+                        if (!routePointsMap[trip.route_id]) {
+                            routePointsMap[trip.route_id] = [];
+                        }
+                        let pts = gtfsData.shapes[trip.shape_id];
+                        if (pts) {
+                            // Sample points to keep it fast (e.g., every 5th point)
+                            for (let i = 0; i < pts.length; i += 5) {
+                                routePointsMap[trip.route_id].push(pts[i]);
+                            }
+                        }
+                    }
+                });
+
+                // Check distance from user coordinates to each route's shape points
+                Object.keys(routePointsMap).forEach(routeId => {
+                    routePointsMap[routeId].forEach(pt => {
+                        let dist = Math.pow(pt.lat - lat, 2) + Math.pow(pt.lng - lng, 2);
+                        if (dist < minDistance) {
+                            minDistance = dist;
+                            closestRouteId = routeId;
+                        }
+                    });
+                });
+
+                if (closestRouteId) {
+                    const select = document.getElementById('route-select');
+                    select.value = closestRouteId;
+                    renderRoute();
+                } else {
+                    alert("Could not determine the nearest route.");
+                }
+            };
+
+            if (lastUserLatLng) {
+                executeSelection(lastUserLatLng[0], lastUserLatLng[1]);
+            } else if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    lastUserLatLng = [position.coords.latitude, position.coords.longitude];
+                    executeSelection(lastUserLatLng[0], lastUserLatLng[1]);
+                }, err => {
+                    alert("Unable to retrieve your location for finding the nearest route.");
+                }, { enableHighAccuracy: true, timeout: 5000 });
+            } else {
+                alert("Geolocation is not supported by your browser.");
             }
         }
 
