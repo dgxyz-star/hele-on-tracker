@@ -104,14 +104,6 @@
             setTimeout(() => { map.invalidateSize(); }, 300);
         }
 
-        function togglePlannerPanel() {
-            const panel = document.getElementById('planner-panel');
-            panel.classList.toggle('hidden');
-            if (!panel.classList.contains('hidden') && !tripPlanner.startStopId) {
-                evaluateTripPlanner();
-            }
-        }
-
         const map = L.map('map', { zoomControl: false }).setView([19.5750, -154.9600], 11);
 
         // Standard OpenStreetMap Tiles
@@ -341,11 +333,9 @@
             const rowDiv = btn.closest('.controls-row');
             const container = document.getElementById('route-rows-container');
             
-            // Keep at least one row if it's the only one left, or just remove it.
             if (container.children.length > 1) {
                 rowDiv.remove();
             } else {
-                // If it's the last row, just reset its selection
                 const selectEl = rowDiv.querySelector('.route-select-dropdown');
                 selectEl.value = '';
             }
@@ -505,6 +495,14 @@
 
                     let matchInfo = getClosestShapeMatch(stopInfo.lat, stopInfo.lng, activeShapes, shapeColorMap);
 
+                    // Customize arrow color if it's start or end stop
+                    let finalIconColor = matchInfo.color;
+                    if (stopId === tripPlanner.startStopId) {
+                        finalIconColor = '#f97316'; // Orange for start stop
+                    } else if (stopId === tripPlanner.endStopId) {
+                        finalIconColor = '#ef4444'; // Red for end stop
+                    }
+
                     let destinationsObj = activeStopsMap[stopId];
                     let schedulesHtml = '';
 
@@ -531,7 +529,7 @@
                     let svgArrowIcon = L.divIcon({
                         className: 'stop-svg-arrow',
                         html: `<div style="transform: rotate(${matchInfo.bearing}deg); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0px 0px 3px rgba(0,0,0,0.8));">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="${matchInfo.color}" stroke="#0f172a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="${finalIconColor}" stroke="#0f172a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <polygon points="12 2 19 21 12 17 5 21 12 2"></polygon>
                             </svg>
                         </div>`,
@@ -557,6 +555,7 @@
                 tripPlanner.endStopId = stopId;
             }
             map.closePopup();
+            redrawMapLayers();
             evaluateTripPlanner();
         }
 
@@ -626,6 +625,7 @@
             tripPlanner.startStopId = null;
             tripPlanner.endStopId = null;
             document.getElementById('planner-panel').classList.add('hidden');
+            redrawMapLayers();
         }
 
         function locateUser() {
