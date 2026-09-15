@@ -111,9 +111,12 @@
         }
 
         const map = L.map('map').setView([19.5750, -154.9600], 11);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        
+        // Dark Mode Map Tiles (CartoDB Dark Matter)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
             maxZoom: 19,
-            attribution: '&copy; OpenStreetMap'
+            subdomains: 'abcd',
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
         }).addTo(map);
 
         let markersLayer = L.layerGroup().addTo(map);
@@ -261,7 +264,6 @@
         }
 
         function populateControls() {
-            // 1. Populate Routes Dropdown
             const routeSelect = document.getElementById('route-select');
             routeSelect.innerHTML = '';
             
@@ -275,7 +277,6 @@
                 routeSelect.appendChild(opt);
             });
 
-            // 2. Populate Date Dropdown (Next 7 days for precise day-by-day checking)
             const dateSelect = document.getElementById('date-select');
             dateSelect.innerHTML = '';
             
@@ -304,7 +305,6 @@
             }
         }
 
-        // Get exact target date object from dropdown value (YYYYMMDD)
         function getTargetEvaluationDate() {
             const val = document.getElementById('date-select').value;
             if (!val || val.length !== 8) return new Date();
@@ -320,12 +320,10 @@
             const day = String(targetDate.getDate()).padStart(2, '0');
             const dateStr = `${year}${month}${day}`;
 
-            // 1. Check calendar_dates exceptions first (overrides weekly rules)
             if (gtfsData.calendarDates[dateStr] && gtfsData.calendarDates[dateStr][serviceId] !== undefined) {
                 return gtfsData.calendarDates[dateStr][serviceId] === 1;
             }
 
-            // 2. Check calendar weekly rules
             const rule = gtfsData.calendar[serviceId];
             if (!rule) {
                 return Object.keys(gtfsData.calendar).length === 0;
@@ -335,7 +333,7 @@
                 return false;
             }
 
-            const dayOfWeek = targetDate.getDay(); // 0: Sun, 1: Mon, etc.
+            const dayOfWeek = targetDate.getDay();
             return rule.days[dayOfWeek] === 1;
         }
 
@@ -436,7 +434,7 @@
                     let polyline = L.polyline(lineCoords, { 
                         color: shapeColorMap[shapeId], 
                         weight: 5, 
-                        opacity: 0.75 
+                        opacity: 0.85 
                     });
                     markersLayer.addLayer(polyline);
                     points.forEach(p => latLngs.push([p.lat, p.lng]));
