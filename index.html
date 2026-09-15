@@ -122,7 +122,7 @@
         let userMarker = null;
         let lastUserLatLng = null;
 
-        let gtfsData = { routes: {}, trips: {}, stops: {}, stopTimes: {}, shapes: {}, calendar: {}, calendarDates: {} };
+        let gtfsData = { routes: {}, rawRoutes: {}, trips: {}, stops: {}, stopTimes: {}, shapes: {}, calendar: {}, calendarDates: {} };
         let tripPlanner = { startStopId: null, endStopId: null };
 
         const shapeColors = ['#06b6d4', '#4ade80', '#38bdf8', '#22c55e', '#0284c7', '#10b981', '#0ea5e9', '#86efac'];
@@ -178,6 +178,7 @@
 
                 parseCSV(routesText).forEach(row => {
                     let rId = row.route_id;
+                    gtfsData.rawRoutes[rId] = row;
                     let rName = row.route_short_name ? `${row.route_short_name}: ${row.route_long_name}` : row.route_long_name;
                     gtfsData.routes[rId] = rName;
                 });
@@ -266,8 +267,28 @@
             const routeSelect = document.getElementById('route-select');
             routeSelect.innerHTML = '';
             
-            let sortedRoutes = Object.keys(gtfsData.routes).map(id => ({ id, name: gtfsData.routes[id] }));
-            sortedRoutes.sort((a, b) => a.name.localeCompare(b.name));
+            let sortedRoutes = Object.keys(gtfsData.routes).map(id => {
+                let raw = gtfsData.rawRoutes[id] || {};
+                return {
+                    id,
+                    name: gtfsData.routes[id],
+                    shortName: raw.route_short_name || ''
+                };
+            });
+
+            // Sort chronologically/numerically by route number (short name)
+            sortedRoutes.sort((a, b) => {
+                let numA = parseFloat(a.shortName);
+                let numB = parseFloat(b.shortName);
+
+                // If both start with numbers, sort numerically
+                if (!isNaN(numA) && !isNaN(numB)) {
+                    if (numA !== numB) return numA - numB;
+                }
+                
+                // Fallback to alphabetical sorting if numbers match or aren't present
+                return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+            });
 
             sortedRoutes.forEach(r => {
                 let opt = document.createElement('option');
