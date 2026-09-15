@@ -14,11 +14,16 @@
         header.collapsed { transform: translateY(-100%); position: absolute; width: 100%; pointer-events: none; }
         header.collapsed .header-top-controls { pointer-events: auto; }
 
-        .header-top { display: flex; align-items: center; justify-content: flex-end; gap: 8px; position: relative; }
-        .header-top-controls { display: flex; gap: 4px; flex-shrink: 0; }
+        .header-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; position: relative; }
+        .header-date-wrapper { flex: 1; min-width: 0; max-width: 180px; }
+        .header-top-controls { display: flex; gap: 4px; flex-shrink: 0; align-items: center; }
         .toggle-btn, .gps-btn, .action-top-btn { background: #334155; color: #06b6d4; border: 1px solid #475569; border-radius: 4px; padding: 4px 8px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
-        .controls-row { display: flex; gap: 4px; width: 100%; min-width: 0; }
+        #route-rows-container { display: flex; flex-direction: column; gap: 4px; width: 100%; min-width: 0; }
+        .controls-row { display: flex; gap: 4px; width: 100%; min-width: 0; align-items: center; }
+
+        .remove-row-btn { background: #475569; color: #f43f5e; border: 1px solid #64748b; border-radius: 4px; padding: 5px 8px; font-size: 0.75rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .remove-row-btn:active { background: #64748b; }
 
         .select-wrapper { flex: 1; min-width: 0; position: relative; }
         select { width: 100%; min-width: 0; background: #334155; color: #fff; border: 1px solid #475569; padding: 5px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
@@ -57,26 +62,24 @@
     <div class="floating-toggle-container">
         <button class="floating-btn" onclick="locateUser()" title="Locate GPS">🎯</button>
         <button class="floating-btn" onclick="findNearestRoute()" title="Find Nearest Route">🚏</button>
-        <button class="floating-btn" onclick="addSelectedRoute()" title="Add Route">➕</button>
+        <button class="floating-btn" onclick="addRouteRow()" title="Add Route">➕</button>
         <button class="floating-btn" onclick="toggleHeader()">▼</button>
     </div>
 
     <header id="main-header">
         <div class="header-top">
+            <div class="header-date-wrapper">
+                <select id="date-select" onchange="redrawMapLayers()"></select>
+            </div>
             <div class="header-top-controls">
                 <button class="gps-btn" onclick="locateUser()" title="Locate GPS">🎯</button>
                 <button class="action-top-btn" onclick="findNearestRoute()" title="Find Nearest Route">🚏</button>
-                <button class="action-top-btn" onclick="addSelectedRoute()" title="Add Route">➕</button>
+                <button class="action-top-btn" onclick="addRouteRow()" title="Add Route">➕</button>
                 <button class="toggle-btn" onclick="toggleHeader()">▲</button>
             </div>
         </div>
-        <div class="controls-row">
-            <div class="select-wrapper">
-                <select id="route-select" onchange="renderRoutes()"><option value="">Select Route</option></select>
-            </div>
-            <div class="select-wrapper" style="flex: 0.8;">
-                <select id="date-select" onchange="renderRoutes()"></select>
-            </div>
+        <div id="route-rows-container">
+            <!-- Dynamic route selection rows will be added here -->
         </div>
     </header>
 
@@ -109,7 +112,6 @@
             }
         }
 
-        // Initialize map without zoom control buttons (+ / -)
         const map = L.map('map', { zoomControl: false }).setView([19.5750, -154.9600], 11);
 
         // Standard OpenStreetMap Tiles
@@ -124,7 +126,7 @@
 
         let gtfsData = { routes: {}, rawRoutes: {}, trips: {}, stops: {}, stopTimes: {}, shapes: {}, calendar: {}, calendarDates: {} };
         let tripPlanner = { startStopId: null, endStopId: null };
-        let activeRouteIds = new Set(); // Supports multiple displayed routes
+        let availableRouteOptionsHtml = '<option value="">Select Route</option>';
 
         const shapeColors = ['#06b6d4', '#4ade80', '#38bdf8', '#22c55e', '#0284c7', '#10b981', '#0ea5e9', '#86efac'];
 
@@ -260,14 +262,10 @@
                 populateControls();
             } catch (err) {
                 console.error("Error loading GTFS files:", err);
-                document.getElementById('route-select').innerHTML = '<option>Error loading text files</option>';
             }
         }
 
         function populateControls() {
-            const routeSelect = document.getElementById('route-select');
-            routeSelect.innerHTML = '<option value="">Select Route</option>';
-
             let sortedRoutes = Object.keys(gtfsData.routes).map(id => {
                 let raw = gtfsData.rawRoutes[id] || {};
                 return {
@@ -286,12 +284,11 @@
                 return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
             });
 
+            let optionsHtml = '<option value="">Select Route</option>';
             sortedRoutes.forEach(r => {
-                let opt = document.createElement('option');
-                opt.value = r.id;
-                opt.textContent = r.name;
-                routeSelect.appendChild(opt);
+                optionsHtml += `<option value="${r.id}">${r.name}</option>`;
             });
+            availableRouteOptionsHtml = optionsHtml;
 
             const dateSelect = document.getElementById('date-select');
             dateSelect.innerHTML = '';
@@ -315,6 +312,44 @@
                 opt.textContent = friendlyLabel;
                 dateSelect.appendChild(opt);
             }
+
+            // Start with one route selection row by default
+            addRouteRow();
+        }
+
+        function addRouteRow(selectedRouteId = '') {
+            const container = document.getElementById('route-rows-container');
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'controls-row';
+            
+            rowDiv.innerHTML = `
+                <button class="remove-row-btn" onclick="removeRouteRow(this)" title="Remove Route">✕</button>
+                <div class="select-wrapper">
+                    <select class="route-select-dropdown" onchange="redrawMapLayers()">${availableRouteOptionsHtml}</select>
+                </div>
+            `;
+            container.appendChild(rowDiv);
+
+            if (selectedRouteId) {
+                const selectEl = rowDiv.querySelector('.route-select-dropdown');
+                selectEl.value = selectedRouteId;
+                redrawMapLayers();
+            }
+        }
+
+        function removeRouteRow(btn) {
+            const rowDiv = btn.closest('.controls-row');
+            const container = document.getElementById('route-rows-container');
+            
+            // Keep at least one row if it's the only one left, or just remove it.
+            if (container.children.length > 1) {
+                rowDiv.remove();
+            } else {
+                // If it's the last row, just reset its selection
+                const selectEl = rowDiv.querySelector('.route-select-dropdown');
+                selectEl.value = '';
+            }
+            redrawMapLayers();
         }
 
         function getTargetEvaluationDate() {
@@ -385,26 +420,17 @@
             return { bearing, color };
         }
 
-        function renderRoutes() {
-            const selectedRouteId = document.getElementById('route-select').value;
-            if (selectedRouteId) {
-                activeRouteIds.add(selectedRouteId);
-            }
-            redrawMapLayers();
-        }
-
-        function addSelectedRoute() {
-            const selectedRouteId = document.getElementById('route-select').value;
-            if (!selectedRouteId) {
-                alert("Please select a route from the dropdown first.");
-                return;
-            }
-            activeRouteIds.add(selectedRouteId);
-            redrawMapLayers();
-        }
-
         function redrawMapLayers() {
             markersLayer.clearLayers();
+
+            const selects = document.querySelectorAll('.route-select-dropdown');
+            let activeRouteIds = new Set();
+            selects.forEach(sel => {
+                if (sel.value) {
+                    activeRouteIds.add(sel.value);
+                }
+            });
+
             if (activeRouteIds.size === 0) return;
 
             const targetDate = getTargetEvaluationDate();
@@ -645,12 +671,9 @@
                     }
 
                     if (matchedRouteId) {
-                        document.getElementById('route-select').value = matchedRouteId;
-                        activeRouteIds.add(matchedRouteId);
-                        redrawMapLayers();
+                        addRouteRow(matchedRouteId);
                     }
                 }
-                // Removed map.setView to prevent zooming into location when finding nearest route
             };
 
             if (lastUserLatLng) {
