@@ -53,15 +53,20 @@
 
         .user-loc-dot { background: #06b6d4; border: 2px solid #ffffff; border-radius: 50%; box-shadow: 0 0 6px rgba(6, 182, 212, 0.8); }
 
-        /* Classic Map Pin Marker Style */
-        .map-pin-container {
-            position: relative;
-            width: 32px;
-            height: 42px;
+        /* Classic Square Badge Marker Style */
+        .map-badge-pin {
+            background: var(--pin-bg);
+            color: #0f172a;
+            font-weight: bold;
+            width: 26px;
+            height: 26px;
             display: flex;
             align-items: center;
             justify-content: center;
-            filter: drop-shadow(0 3px 4px rgba(0,0,0,0.5));
+            border-radius: 4px;
+            border: 2px solid #ffffff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            font-size: 0.8rem;
         }
     </style>
 </head>
@@ -163,21 +168,12 @@
             let pinColor = type === 'start' ? '#4ade80' : '#f43f5e';
             let labelText = type === 'start' ? 'A' : 'B';
 
-            let pinHtml = `
-                <div class="map-pin-container">
-                    <svg width="32" height="42" viewBox="0 0 24 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 0C5.373 0 0 5.373 0 12c0 9 12 24 12 24s12-15 12-24c0-6.627-5.373-12-12-12z" fill="${pinColor}" stroke="#ffffff" stroke-width="1.5"/>
-                    </svg>
-                    <div style="position: absolute; top: 4px; color: #0f172a; font-weight: bold; font-size: 0.75rem;">${labelText}</div>
-                </div>
-            `;
-
             let pinIcon = L.divIcon({
-                className: 'custom-map-pin',
-                html: pinHtml,
-                iconSize: [32, 42],
-                iconAnchor: [16, 42],
-                popupAnchor: [0, -38]
+                className: '',
+                html: `<div class="map-badge-pin" style="--pin-bg: ${pinColor};">${labelText}</div>`,
+                iconSize: [26, 26],
+                iconAnchor: [13, 13],
+                popupAnchor: [0, -12]
             });
 
             if (customPins[type].marker) {
@@ -190,107 +186,56 @@
                 marker: L.marker([lat, lng], { icon: pinIcon }).addTo(map)
             };
 
-            if (customPins.start.lat !== null && customPins.end.lat !== null) {
-                executePointToPointAnalysis();
-            }
+            // Treat this pin as its own individual GPS location to find and assign its nearest route
+            findAndAssignRouteForCoord(lat, lng);
+            evaluateTripPlanner();
         }
 
-        function executePointToPointAnalysis() {
-            let closestStartStopId = null;
-            let minStartDist = Infinity;
+        function findAndAssignRouteForCoord(lat, lng) {
+            let closestStopId = null;
+            let minDist = Infinity;
             Object.keys(gtfsData.stops).forEach(stopId => {
                 let s = gtfsData.stops[stopId];
-                let dist = Math.pow(s.lat - customPins.start.lat, 2) + Math.pow(s.lng - customPins.start.lng, 2);
-                if (dist < minStartDist) {
-                    minStartDist = dist;
-                    closestStartStopId = stopId;
+                if (!isNaN(s.lat) && !isNaN(s.lng)) {
+                    let dist = Math.pow(s.lat - lat, 2) + Math.pow(s.lng - lng, 2);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        closestStopId = stopId;
+                    }
                 }
             });
 
-            let closestEndStopId = null;
-            let minEndDist = Infinity;
-            Object.keys(gtfsData.stops).forEach(stopId => {
-                let s = gtfsData.stops[stopId];
-                let dist = Math.pow(s.lat - customPins.end.lat, 2) + Math.pow(s.lng - customPins.end.lng, 2);
-                if (dist < minEndDist) {
-                    minEndDist = dist;
-                    closestEndStopId = stopId;
-                }
-            });
-
-            if (!closestStartStopId || !closestEndStopId) return;
-
-            tripPlanner.startStopId = closestStartStopId;
-            tripPlanner.endStopId = closestEndStopId;
-
-            let matchingRouteIds = new Set();
-            let validTrips = [];
-            const targetDate = getTargetEvaluationDate();
-
-            Object.keys(gtfsData.trips).forEach(tripId => {
-                let trip = gtfsData.trips[tripId];
-                if (isServiceActive(trip.service_id, targetDate)) {
+            if (closestStopId) {
+                let matchedRouteId = null;
+                for (let tripId in gtfsData.trips) {
+                    let trip = gtfsData.trips[tripId];
                     let stops = gtfsData.stopTimes[tripId] || [];
-                    let startIndex = -1, endIndex = -1;
-                    for (let i = 0; i < stops.length; i++) {
-                        if (stops[i].stop_id === closestStartStopId) startIndex = i;
-                        if (stops[i].stop_id === closestEndStopId) endIndex = i;
-                    }
-
-                    if (startIndex !== -1 && endIndex !== -1 && startIndex < endIndex) {
-                        matchingRouteIds.add(trip.route_id);
-                        validTrips.push({
-                            routeId: trip.route_id,
-                            depTime: stops[startIndex].dep || stops[startIndex].arr,
-                            arrTime: stops[endIndex].arr || stops[endIndex].dep,
-                            headsign: gtfsData.routes[trip.route_id] || 'Route Connection'
-                        });
+                    if (stops.some(st => st.stop_id === closestStopId)) {
+                        matchedRouteId = trip.route_id;
+                        break;
                     }
                 }
-            });
 
-            let activeRouteIds = Array.from(matchingRouteIds);
-            
-            const selects = document.querySelectorAll('.route-select');
-            if (selects.length > 0 && activeRouteIds.length > 0) {
-                selects[0].value = activeRouteIds[0];
-                for (let i = 1; i < activeRouteIds.length; i++) {
-                    if (i >= selects.length) {
+                if (matchedRouteId) {
+                    let selects = document.querySelectorAll('.route-select');
+                    let targetSelect = null;
+                    for (let sel of selects) {
+                        if (!sel.value) {
+                            targetSelect = sel;
+                            break;
+                        }
+                    }
+                    if (!targetSelect) {
                         addRouteDropdown();
+                        selects = document.querySelectorAll('.route-select');
+                        targetSelect = selects[selects.length - 1];
                     }
-                    document.querySelectorAll('.route-select')[i].value = activeRouteIds[i];
+                    if (targetSelect) {
+                        targetSelect.value = matchedRouteId;
+                        renderSelectedRoutes();
+                    }
                 }
             }
-
-            renderSelectedRoutes();
-            showPlannerResults(validTrips);
-        }
-
-        function showPlannerResults(validTrips) {
-            const panel = document.getElementById('planner-panel');
-            const title = document.getElementById('planner-title');
-            const resultsList = document.getElementById('planner-results');
-
-            let startStopName = gtfsData.stops[tripPlanner.startStopId].name;
-            let endStopName = gtfsData.stops[tripPlanner.endStopId].name;
-            title.textContent = `Path: ${startStopName} → ${endStopName}`;
-
-            resultsList.innerHTML = '';
-            if (validTrips && validTrips.length > 0) {
-                validTrips.sort((a, b) => a.depTime.localeCompare(b.depTime)).forEach(vt => {
-                    let li = document.createElement('li');
-                    li.innerHTML = `
-                        <div>
-                            <div class="planner-times">${vt.headsign}</div>
-                            <div style="font-size:0.6rem; color:#cbd5e1;">Dep: ${vt.depTime} &rarr; Arr: ${vt.arrTime}</div>
-                        </div>
-                    `;
-                    resultsList.appendChild(li);
-                });
-            } else {
-                resultsList.innerHTML = `<li style="justify-content:center; color:#f43f5e;">No direct trips found between these points for this schedule.</li>`;
-            }
-            panel.classList.remove('hidden');
         }
 
         function addRouteDropdown() {
@@ -746,60 +691,23 @@
             const title = document.getElementById('planner-title');
             const resultsList = document.getElementById('planner-results');
 
-            if (!tripPlanner.startStopId || !tripPlanner.endStopId) {
-                panel.classList.remove('hidden');
-                let startName = tripPlanner.startStopId ? gtfsData.stops[tripPlanner.startStopId].name : 'Not set';
-                let endName = tripPlanner.endStopId ? gtfsData.stops[tripPlanner.endStopId].name : 'Not set';
-                title.textContent = `Planner: ${tripPlanner.startStopId ? '📍 Start Set' : 'Select Start'} → ${tripPlanner.endStopId ? '🏁 End Set' : 'Select End'}`;
-                resultsList.innerHTML = `<li style="justify-content:center; color:#94a3b8;">From: ${startName}<br>To: ${endName}</li>`;
+            if (!tripPlanner.startStopId && !tripPlanner.endStopId) {
+                panel.classList.add('hidden');
                 return;
             }
 
-            let startStop = gtfsData.stops[tripPlanner.startStopId];
-            let endStop = gtfsData.stops[tripPlanner.endStopId];
-            title.textContent = `${startStop.name} ➔ ${endStop.name}`;
+            let startName = tripPlanner.startStopId ? gtfsData.stops[tripPlanner.startStopId].name : 'Not set';
+            let endName = tripPlanner.endStopId ? gtfsData.stops[tripPlanner.endStopId].name : 'Not set';
+            title.textContent = `Selected Stops: A (${startName}) → B (${endName})`;
 
-            let validTrips = [];
-            const targetDate = getTargetEvaluationDate();
-
-            Object.keys(gtfsData.trips).forEach(tripId => {
-                let trip = gtfsData.trips[tripId];
-                if (isServiceActive(trip.service_id, targetDate)) {
-                    let stops = gtfsData.stopTimes[tripId] || [];
-                    let startIndex = -1, endIndex = -1;
-                    for (let i = 0; i < stops.length; i++) {
-                        if (stops[i].stop_id === tripPlanner.startStopId) startIndex = i;
-                        if (stops[i].stop_id === tripPlanner.endStopId) endIndex = i;
-                    }
-
-                    if (startIndex !== -1 && endIndex !== -1 && startIndex < endIndex) {
-                        let depTime = stops[startIndex].dep || stops[startIndex].arr;
-                        let arrTime = stops[endIndex].arr || stops[endIndex].dep;
-                        let finalStopEntry = stops[stops.length - 1];
-                        let destName = (finalStopEntry && gtfsData.stops[finalStopEntry.stop_id]) ? gtfsData.stops[finalStopEntry.stop_id].name : 'Direct';
-                        validTrips.push({ depTime, arrTime, headsign: destName });
-                    }
-                }
-            });
-
-            validTrips.sort((a, b) => a.depTime.localeCompare(b.depTime));
-
-            resultsList.innerHTML = '';
-            if (validTrips.length > 0) {
-                validTrips.forEach(vt => {
-                    let li = document.createElement('li');
-                    li.innerHTML = `
-                        <div>
-                            <div class="planner-times">Dep: ${vt.depTime} &rarr; Arr: ${vt.arrTime}</div>
-                            <div style="font-size:0.6rem; color:#cbd5e1;">Final Stop: ${vt.headsign}</div>
-                        </div>
-                    `;
-                    resultsList.appendChild(li);
-                });
-            } else {
-                resultsList.innerHTML = `<li style="justify-content:center; color:#f43f5e;">No direct trips found between these stops for this schedule.</li>`;
-            }
-
+            resultsList.innerHTML = `
+                <li>
+                    <div>
+                        <div class="planner-times">Start Stop: ${startName}</div>
+                        <div style="font-size:0.6rem; color:#cbd5e1;">End Stop: ${endName}</div>
+                    </div>
+                </li>
+            `;
             panel.classList.remove('hidden');
         }
 
@@ -811,7 +719,7 @@
             customPins.start = { lat: null, lng: null, marker: null };
             customPins.end = { lat: null, lng: null, marker: null };
             document.getElementById('planner-panel').classList.add('hidden');
-            markersLayer.clearLayers();
+            renderSelectedRoutes();
         }
 
         function locateUser() {
