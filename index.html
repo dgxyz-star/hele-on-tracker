@@ -71,12 +71,15 @@
                 <button class="toggle-btn" onclick="toggleHeader()">▲</button>
             </div>
         </div>
-        <div class="controls-row">
-            <div class="select-wrapper">
-                <select id="route-select" onchange="renderRoute()"><option value="">Loading routes...</option></select>
-            </div>
-            <div class="select-wrapper" style="flex: 0.8;">
-                <select id="date-select" onchange="renderRoute()"></select>
+        <div id="route-controls-wrapper" style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
+            <div class="controls-row">
+                <button class="action-top-btn" onclick="addRouteDropdown()" title="Add Route">+</button>
+                <div class="select-wrapper">
+                    <select class="route-select" onchange="renderSelectedRoutes()"><option value="">Loading routes...</option></select>
+                </div>
+                <div class="select-wrapper" style="flex: 0.8;">
+                    <select id="date-select" onchange="renderSelectedRoutes()"></select>
+                </div>
             </div>
         </div>
     </header>
@@ -128,7 +131,6 @@
             start: { lat: null, lng: null, marker: null },
             end: { lat: null, lng: null, marker: null }
         };
-        let activeRouteIds = [];
 
         const shapeColors = ['#06b6d4', '#4ade80', '#38bdf8', '#22c55e', '#0284c7', '#10b981', '#0ea5e9', '#86efac'];
 
@@ -231,16 +233,26 @@
                 }
             });
 
-            activeRouteIds = Array.from(matchingRouteIds);
-            renderMultiRoutes(validTrips);
+            let activeRouteIds = Array.from(matchingRouteIds);
+            
+            // Populate dropdowns with found routes if available
+            const selects = document.querySelectorAll('.route-select');
+            if (selects.length > 0 && activeRouteIds.length > 0) {
+                selects[0].value = activeRouteIds[0];
+                // If there are more routes, add dropdowns for them
+                for (let i = 1; i < activeRouteIds.length; i++) {
+                    if (i >= selects.length) {
+                        addRouteDropdown();
+                    }
+                    document.querySelectorAll('.route-select')[i].value = activeRouteIds[i];
+                }
+            }
+
+            renderSelectedRoutes();
+            showPlannerResults(validTrips);
         }
 
-        function renderMultiRoutes(validTrips) {
-            markersLayer.clearLayers();
-
-            if (customPins.start.marker) markersLayer.addLayer(customPins.start.marker);
-            if (customPins.end.marker) markersLayer.addLayer(customPins.end.marker);
-
+        function showPlannerResults(validTrips) {
             const panel = document.getElementById('planner-panel');
             const title = document.getElementById('planner-title');
             const resultsList = document.getElementById('planner-results');
@@ -250,63 +262,42 @@
             title.textContent = `Path: ${startStopName} → ${endStopName}`;
 
             resultsList.innerHTML = '';
-
-            if (activeRouteIds.length === 0) {
-                resultsList.innerHTML = `<li style="justify-content:center; color:#f43f5e;">No direct routes found between these custom points.</li>`;
-                panel.classList.remove('hidden');
-                return;
-            }
-
-            let controlsContainer = document.createElement('div');
-            controlsContainer.style.marginBottom = "8px";
-            controlsContainer.innerHTML = `<div style="font-size:0.65rem; color:#06b6d4; font-weight:bold; margin-bottom:4px;">Matching Routes (${activeRouteIds.length}):</div>`;
-            
-            let shapeColorMap = {};
-            activeRouteIds.forEach((rId, index) => {
-                let color = shapeColors[index % shapeColors.length];
-                shapeColorMap[rId] = color;
-
-                let routeBadge = document.createElement('label');
-                routeBadge.style.cssText = `display:inline-flex; align-items:center; margin-right:8px; font-size:0.65rem; color:#fff; cursor:pointer; background:#0f172a; padding:2px 6px; border-radius:3px; border-left:3px solid ${color};`;
-                routeBadge.innerHTML = `<input type="checkbox" checked onchange="renderRoute()" style="margin-right:4px;"> ${gtfsData.routes[rId] || rId}`;
-                controlsContainer.appendChild(routeBadge);
-            });
-            resultsList.appendChild(controlsContainer);
-
-            let allLatLngs = [
-                [customPins.start.lat, customPins.start.lng],
-                [customPins.end.lat, customPins.end.lng]
-            ];
-
-            activeRouteIds.forEach((routeId, index) => {
-                let color = shapeColorMap[routeId];
-                Object.keys(gtfsData.trips).forEach(tripId => {
-                    let trip = gtfsData.trips[tripId];
-                    if (trip.route_id === routeId && trip.shape_id && gtfsData.shapes[trip.shape_id]) {
-                        let points = gtfsData.shapes[trip.shape_id];
-                        let lineCoords = points.map(p => [p.lat, p.lng]);
-                        let polyline = L.polyline(lineCoords, { color: color, weight: 4, opacity: 0.8 });
-                        markersLayer.addLayer(polyline);
-                        points.forEach(p => allLatLngs.push([p.lat, p.lng]));
-                    }
+            if (validTrips && validTrips.length > 0) {
+                validTrips.sort((a, b) => a.depTime.localeCompare(b.depTime)).forEach(vt => {
+                    let li = document.createElement('li');
+                    li.innerHTML = `
+                        <div>
+                            <div class="planner-times">${vt.headsign}</div>
+                            <div style="font-size:0.6rem; color:#cbd5e1;">Dep: ${vt.depTime} &rarr; Arr: ${vt.arrTime}</div>
+                        </div>
+                    `;
+                    resultsList.appendChild(li);
                 });
-            });
-
-            validTrips.sort((a, b) => a.depTime.localeCompare(b.depTime)).forEach(vt => {
-                let li = document.createElement('li');
-                li.innerHTML = `
-                    <div>
-                        <div class="planner-times">${vt.headsign}</div>
-                        <div style="font-size:0.6rem; color:#cbd5e1;">Dep: ${vt.depTime} &rarr; Arr: ${vt.arrTime}</div>
-                    </div>
-                `;
-                resultsList.appendChild(li);
-            });
-
-            panel.classList.remove('hidden');
-            if (allLatLngs.length > 0) {
-                map.fitBounds(allLatLngs, { padding: [40, 40] });
+            } else {
+                resultsList.innerHTML = `<li style="justify-content:center; color:#f43f5e;">No direct trips found between these points for this schedule.</li>`;
             }
+            panel.classList.remove('hidden');
+        }
+
+        function addRouteDropdown() {
+            const container = document.getElementById('route-controls-wrapper');
+            const row = document.createElement('div');
+            row.className = 'controls-row';
+            row.style.marginTop = '4px';
+            
+            row.innerHTML = `
+                <button class="action-top-btn" onclick="removeRouteDropdown(this)" title="Remove Route" style="background:#475569; color:#f43f5e;">✕</button>
+                <div class="select-wrapper">
+                    <select class="route-select" onchange="renderSelectedRoutes()"><option value="">Select a route...</option></select>
+                </div>
+            `;
+            container.appendChild(row);
+            populateControls();
+        }
+
+        function removeRouteDropdown(btn) {
+            btn.closest('.controls-row').remove();
+            renderSelectedRoutes();
         }
 
         function parseCSV(text) {
@@ -441,66 +432,72 @@
                 populateControls();
             } catch (err) {
                 console.error("Error loading GTFS files:", err);
-                document.getElementById('route-select').innerHTML = '<option>Error loading text files</option>';
+                document.querySelectorAll('.route-select').forEach(el => el.innerHTML = '<option>Error loading text files</option>');
             }
         }
 
         function populateControls() {
-            const routeSelect = document.getElementById('route-select');
-            routeSelect.innerHTML = '';
+            const routeSelects = document.querySelectorAll('.route-select');
+            routeSelects.forEach(select => {
+                let currentVal = select.value;
+                select.innerHTML = '<option value="">Select a route...</option>';
 
-            let sortedRoutes = Object.keys(gtfsData.routes).map(id => {
-                let raw = gtfsData.rawRoutes[id] || {};
-                return {
-                    id,
-                    name: gtfsData.routes[id],
-                    shortName: raw.route_short_name || ''
-                };
-            });
+                let sortedRoutes = Object.keys(gtfsData.routes).map(id => {
+                    let raw = gtfsData.rawRoutes[id] || {};
+                    return {
+                        id,
+                        name: gtfsData.routes[id],
+                        shortName: raw.route_short_name || ''
+                    };
+                });
 
-            sortedRoutes.sort((a, b) => {
-                let numA = parseFloat(a.shortName);
-                let numB = parseFloat(b.shortName);
+                sortedRoutes.sort((a, b) => {
+                    let numA = parseFloat(a.shortName);
+                    let numB = parseFloat(b.shortName);
 
-                if (!isNaN(numA) && !isNaN(numB)) {
-                    if (numA !== numB) return numA - numB;
-                }
+                    if (!isNaN(numA) && !isNaN(numB)) {
+                        if (numA !== numB) return numA - numB;
+                    }
 
-                return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
-            });
+                    return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+                });
 
-            sortedRoutes.forEach(r => {
-                let opt = document.createElement('option');
-                opt.value = r.id;
-                opt.textContent = r.name;
-                routeSelect.appendChild(opt);
+                sortedRoutes.forEach(r => {
+                    let opt = document.createElement('option');
+                    opt.value = r.id;
+                    opt.textContent = r.name;
+                    select.appendChild(opt);
+                });
+
+                if (currentVal) select.value = currentVal;
             });
 
             const dateSelect = document.getElementById('date-select');
-            dateSelect.innerHTML = '';
+            if (dateSelect && dateSelect.options.length === 0) {
+                const today = new Date();
+                for (let i = 0; i < 7; i++) {
+                    let d = new Date(today);
+                    d.setDate(today.getDate() + i);
 
-            const today = new Date();
-            for (let i = 0; i < 7; i++) {
-                let d = new Date(today);
-                d.setDate(today.getDate() + i);
+                    let year = d.getFullYear();
+                    let month = String(d.getMonth() + 1).padStart(2, '0');
+                    let day = String(d.getDate()).padStart(2, '0');
+                    let dateStr = `${year}${month}${day}`;
 
-                let year = d.getFullYear();
-                let month = String(d.getMonth() + 1).padStart(2, '0');
-                let day = String(d.getDate()).padStart(2, '0');
-                let dateStr = `${year}${month}${day}`;
+                    let labelOptions = { weekday: 'short', month: 'short', day: 'numeric' };
+                    let friendlyLabel = d.toLocaleDateString('en-US', labelOptions);
+                    if (i === 0) friendlyLabel = `Today (${friendlyLabel})`;
 
-                let labelOptions = { weekday: 'short', month: 'short', day: 'numeric' };
-                let friendlyLabel = d.toLocaleDateString('en-US', labelOptions);
-                if (i === 0) friendlyLabel = `Today (${friendlyLabel})`;
-
-                let opt = document.createElement('option');
-                opt.value = dateStr;
-                opt.textContent = friendlyLabel;
-                dateSelect.appendChild(opt);
+                    let opt = document.createElement('option');
+                    opt.value = dateStr;
+                    opt.textContent = friendlyLabel;
+                    dateSelect.appendChild(opt);
+                }
             }
 
-            if (sortedRoutes.length > 0) {
-                renderRoute();
+            if (routeSelects.length > 0 && routeSelects[0].options.length > 1 && !routeSelects[0].value) {
+                routeSelects[0].value = routeSelects[0].options[1].value;
+                renderSelectedRoutes();
             }
         }
 
@@ -573,122 +570,149 @@
         }
 
         function renderRoute() {
-            const routeId = document.getElementById('route-select').value;
+            renderSelectedRoutes();
+        }
+
+        function renderSelectedRoutes() {
             markersLayer.clearLayers();
-            if (!routeId) return;
+
+            if (customPins.start.marker) markersLayer.addLayer(customPins.start.marker);
+            if (customPins.end.marker) markersLayer.addLayer(customPins.end.marker);
+
+            const selectElements = document.querySelectorAll('.route-select');
+            let activeRouteIds = [];
+            selectElements.forEach(sel => {
+                if (sel.value && !activeRouteIds.includes(sel.value)) {
+                    activeRouteIds.push(sel.value);
+                }
+            });
+
+            if (activeRouteIds.length === 0) return;
 
             const targetDate = getTargetEvaluationDate();
-            let activeStopsMap = {};
-            let activeShapes = new Set();
-
-            Object.keys(gtfsData.trips).forEach(tripId => {
-                let trip = gtfsData.trips[tripId];
-                if (trip.route_id === routeId) {
-                    if (isServiceActive(trip.service_id, targetDate)) {
-                        if (trip.shape_id) {
-                            activeShapes.add(trip.shape_id);
-                        }
-                        let tripStops = gtfsData.stopTimes[tripId];
-                        if (tripStops && tripStops.length > 0) {
-                            let finalStopEntry = tripStops[tripStops.length - 1];
-                            let finalStopName = (finalStopEntry && gtfsData.stops[finalStopEntry.stop_id]) ? gtfsData.stops[finalStopEntry.stop_id].name : (trip.headsign || 'Direct');
-                            let finalArrTime = finalStopEntry ? (finalStopEntry.arr || finalStopEntry.dep) : '';
-
-                            tripStops.forEach(st => {
-                                if (!activeStopsMap[st.stop_id]) {
-                                    activeStopsMap[st.stop_id] = {};
-                                }
-                                if (!activeStopsMap[st.stop_id][finalStopName]) {
-                                    activeStopsMap[st.stop_id][finalStopName] = [];
-                                }
-
-                                let localTime = st.dep || st.arr;
-                                let localLabel = st.dep ? 'D' : 'A';
-                                if (localTime) {
-                                    activeStopsMap[st.stop_id][finalStopName].push({
-                                        sortTime: localTime,
-                                        localText: `${localLabel} ${localTime}`,
-                                        destText: finalArrTime ? `A ${finalArrTime}` : ''
-                                    });
-                                }
-                            });
-                        }
-                    }
-                }
-            });
-
             let shapeColorMap = {};
             let colorIdx = 0;
-            activeShapes.forEach(shapeId => {
-                shapeColorMap[shapeId] = shapeColors[colorIdx % shapeColors.length];
+
+            activeRouteIds.forEach(routeId => {
+                let routeColor = shapeColors[colorIdx % shapeColors.length];
                 colorIdx++;
+
+                Object.keys(gtfsData.trips).forEach(tripId => {
+                    let trip = gtfsData.trips[tripId];
+                    if (trip.route_id === routeId && trip.shape_id) {
+                        shapeColorMap[trip.shape_id] = routeColor;
+                    }
+                });
             });
 
-            let latLngs = [];
+            let allLatLngs = [];
+            if (customPins.start.lat !== null) allLatLngs.push([customPins.start.lat, customPins.start.lng]);
+            if (customPins.end.lat !== null) allLatLngs.push([customPins.end.lat, customPins.end.lng]);
 
-            activeShapes.forEach(shapeId => {
-                let points = gtfsData.shapes[shapeId];
-                if (points && points.length > 0) {
-                    let lineCoords = points.map(p => [p.lat, p.lng]);
-                    let polyline = L.polyline(lineCoords, {
-                        color: shapeColorMap[shapeId],
-                        weight: 5,
-                        opacity: 0.75
-                    });
-                    markersLayer.addLayer(polyline);
-                    points.forEach(p => latLngs.push([p.lat, p.lng]));
-                }
-            });
+            activeRouteIds.forEach(routeId => {
+                let activeStopsMap = {};
+                let activeShapes = new Set();
 
-            Object.keys(activeStopsMap).forEach(stopId => {
-                let stopInfo = gtfsData.stops[stopId];
-                if (stopInfo && !isNaN(stopInfo.lat) && !isNaN(stopInfo.lng)) {
-                    latLngs.push([stopInfo.lat, stopInfo.lng]);
+                Object.keys(gtfsData.trips).forEach(tripId => {
+                    let trip = gtfsData.trips[tripId];
+                    if (trip.route_id === routeId) {
+                        if (isServiceActive(trip.service_id, targetDate)) {
+                            if (trip.shape_id) {
+                                activeShapes.add(trip.shape_id);
+                            }
+                            let tripStops = gtfsData.stopTimes[tripId];
+                            if (tripStops && tripStops.length > 0) {
+                                let finalStopEntry = tripStops[tripStops.length - 1];
+                                let finalStopName = (finalStopEntry && gtfsData.stops[finalStopEntry.stop_id]) ? gtfsData.stops[finalStopEntry.stop_id].name : (trip.headsign || 'Direct');
+                                let finalArrTime = finalStopEntry ? (finalStopEntry.arr || finalStopEntry.dep) : '';
 
-                    let matchInfo = getClosestShapeMatch(stopInfo.lat, stopInfo.lng, activeShapes, shapeColorMap);
+                                tripStops.forEach(st => {
+                                    if (!activeStopsMap[st.stop_id]) {
+                                        activeStopsMap[st.stop_id] = {};
+                                    }
+                                    if (!activeStopsMap[st.stop_id][finalStopName]) {
+                                        activeStopsMap[st.stop_id][finalStopName] = [];
+                                    }
 
-                    let destinationsObj = activeStopsMap[stopId];
-                    let schedulesHtml = '';
+                                    let localTime = st.dep || st.arr;
+                                    let localLabel = st.dep ? 'D' : 'A';
+                                    if (localTime) {
+                                        activeStopsMap[st.stop_id][finalStopName].push({
+                                            sortTime: localTime,
+                                            localText: `${localLabel} ${localTime}`,
+                                            destText: finalArrTime ? `A ${finalArrTime}` : ''
+                                        });
+                                    }
+                                });
+                            }
+                        }
+                    }
+                });
 
-                    Object.keys(destinationsObj).forEach(destName => {
-                        let timesArr = destinationsObj[destName].sort((a, b) => a.sortTime.localeCompare(b.sortTime));
-                        schedulesHtml += `
-                            <div class="popup-times-title">&rarr; ${destName}</div>
-                            <ul class="popup-times-list">
-                                ${timesArr.map(item => `<li><span class="time-group">${item.localText} &rarr; ${item.destText}</span></li>`).join('')}
-                            </ul>
+                activeShapes.forEach(shapeId => {
+                    let points = gtfsData.shapes[shapeId];
+                    if (points && points.length > 0) {
+                        let lineCoords = points.map(p => [p.lat, p.lng]);
+                        let polyline = L.polyline(lineCoords, {
+                            color: shapeColorMap[shapeId] || '#06b6d4',
+                            weight: 5,
+                            opacity: 0.75
+                        });
+                        markersLayer.addLayer(polyline);
+                        points.forEach(p => allLatLngs.push([p.lat, p.lng]));
+                    }
+                });
+
+                Object.keys(activeStopsMap).forEach(stopId => {
+                    let stopInfo = gtfsData.stops[stopId];
+                    if (stopInfo && !isNaN(stopInfo.lat) && !isNaN(stopInfo.lng)) {
+                        allLatLngs.push([stopInfo.lat, stopInfo.lng]);
+
+                        let matchInfo = getClosestShapeMatch(stopInfo.lat, stopInfo.lng, activeShapes, shapeColorMap);
+
+                        let destinationsObj = activeStopsMap[stopId];
+                        let schedulesHtml = '';
+
+                        Object.keys(destinationsObj).forEach(destName => {
+                            let timesArr = destinationsObj[destName].sort((a, b) => a.sortTime.localeCompare(b.sortTime));
+                            schedulesHtml += `
+                                <div class="popup-times-title">&rarr; ${destName}</div>
+                                <ul class="popup-times-list">
+                                    ${timesArr.map(item => `<li><span class="time-group">${item.localText} &rarr; ${item.destText}</span></li>`).join('')}
+                                </ul>
+                            `;
+                        });
+
+                        let popupContent = `
+                            <span class="popup-stop-name">${stopInfo.name}</span>
+                            <div class="popup-stop-meta">Stop Code: ${stopInfo.code}</div>
+                            <div>
+                                <button class="btn-action" onclick="setPlannerStop('${stopId}', 'start')">📍 Set Start</button>
+                                <button class="btn-action" onclick="setPlannerStop('${stopId}', 'end')">🏁 Set End</button>
+                            </div>
+                            ${schedulesHtml}
                         `;
-                    });
 
-                    let popupContent = `
-                        <span class="popup-stop-name">${stopInfo.name}</span>
-                        <div class="popup-stop-meta">Stop Code: ${stopInfo.code}</div>
-                        <div>
-                            <button class="btn-action" onclick="setPlannerStop('${stopId}', 'start')">📍 Set Start</button>
-                            <button class="btn-action" onclick="setPlannerStop('${stopId}', 'end')">🏁 Set End</button>
-                        </div>
-                        ${schedulesHtml}
-                    `;
+                        let svgArrowIcon = L.divIcon({
+                            className: 'stop-svg-arrow',
+                            html: `<div style="transform: rotate(${matchInfo.bearing}deg); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0px 0px 3px rgba(0,0,0,0.8));">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="${matchInfo.color}" stroke="#0f172a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="12 2 19 21 12 17 5 21 12 2"></polygon>
+                                </svg>
+                            </div>`,
+                            iconSize: [24, 24],
+                            iconAnchor: [12, 12],
+                            popupAnchor: [0, -10]
+                        });
 
-                    let svgArrowIcon = L.divIcon({
-                        className: 'stop-svg-arrow',
-                        html: `<div style="transform: rotate(${matchInfo.bearing}deg); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0px 0px 3px rgba(0,0,0,0.8));">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="${matchInfo.color}" stroke="#0f172a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polygon points="12 2 19 21 12 17 5 21 12 2"></polygon>
-                            </svg>
-                        </div>`,
-                        iconSize: [24, 24],
-                        iconAnchor: [12, 12],
-                        popupAnchor: [0, -10]
-                    });
-
-                    let marker = L.marker([stopInfo.lat, stopInfo.lng], { icon: svgArrowIcon }).bindPopup(popupContent);
-                    markersLayer.addLayer(marker);
-                }
+                        let marker = L.marker([stopInfo.lat, stopInfo.lng], { icon: svgArrowIcon }).bindPopup(popupContent);
+                        markersLayer.addLayer(marker);
+                    }
+                });
             });
 
-            if (latLngs.length > 1) {
-                map.fitBounds(latLngs, { padding: [30, 30] });
+            if (allLatLngs.length > 1) {
+                map.fitBounds(allLatLngs, { padding: [30, 30] });
             }
         }
 
@@ -818,8 +842,11 @@
                     }
 
                     if (matchedRouteId) {
-                        document.getElementById('route-select').value = matchedRouteId;
-                        renderRoute();
+                        const firstSelect = document.querySelector('.route-select');
+                        if (firstSelect) {
+                            firstSelect.value = matchedRouteId;
+                            renderSelectedRoutes();
+                        }
                     }
                 }
                 map.setView(latLng, 15);
