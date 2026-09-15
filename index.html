@@ -9,24 +9,24 @@
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }
-        
+
         header { background: #1e293b; padding: 6px 8px; border-bottom: 1px solid #334155; display: flex; flex-direction: column; gap: 4px; z-index: 1000; transition: transform 0.3s ease; }
         header.collapsed { transform: translateY(-100%); position: absolute; width: 100%; pointer-events: none; }
         header.collapsed .header-top-controls { pointer-events: auto; }
 
         .header-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; position: relative; }
         h1 { font-size: 0.85rem; color: #06b6d4; text-align: left; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 2px; }
-        
+
         .header-top-controls { display: flex; gap: 4px; flex-shrink: 0; }
         .toggle-btn, .gps-btn, .action-top-btn { background: #334155; color: #06b6d4; border: 1px solid #475569; border-radius: 4px; padding: 4px 8px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
         .controls-row { display: flex; gap: 4px; width: 100%; min-width: 0; }
-        
+
         .select-wrapper { flex: 1; min-width: 0; position: relative; }
         select { width: 100%; min-width: 0; background: #334155; color: #fff; border: 1px solid #475569; padding: 5px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
-        
+
         #map { flex: 1; width: 100%; background: #0f172a; z-index: 1; }
-        
+
         .floating-toggle-container { position: absolute; top: 6px; right: 8px; z-index: 1001; display: none; gap: 4px; }
         body.header-is-collapsed .floating-toggle-container { display: flex; }
         .floating-btn { background: #1e293b; color: #06b6d4; border: 1px solid #475569; border-radius: 4px; padding: 6px 10px; font-size: 0.8rem; font-weight: bold; box-shadow: 0 2px 6px rgba(0,0,0,0.5); cursor: pointer; }
@@ -38,7 +38,7 @@
         .planner-routes-list { list-style: none; overflow-y: auto; max-height: 140px; padding-right: 2px; }
         .planner-routes-list li { background: #0f172a; padding: 6px; margin-bottom: 4px; border-radius: 4px; font-size: 0.7rem; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #4ade80; }
         .planner-times { font-family: monospace; color: #4ade80; font-weight: bold; }
-        
+
         .btn-action { background: #334155; color: #06b6d4; border: 1px solid #475569; padding: 4px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; cursor: pointer; margin-top: 4px; margin-right: 4px; }
         .btn-action:active { background: #475569; }
 
@@ -50,7 +50,7 @@
         .popup-times-list { list-style-type: none; padding-left: 0; max-height: 100px; overflow-y: auto; }
         .popup-times-list li { background: #0f172a; padding: 3px 6px; margin-bottom: 2px; border-radius: 3px; font-size: 0.65rem; display: flex; justify-content: space-between; gap: 4px; align-items: center; }
         .time-group { font-family: monospace; color: #4ade80; font-weight: bold; white-space: nowrap; }
-        
+
         .user-loc-dot { background: #06b6d4; border: 2px solid #ffffff; border-radius: 50%; box-shadow: 0 0 6px rgba(6, 182, 212, 0.8); }
         .custom-pin-dot { background: #f43f5e; border: 2px solid #ffffff; border-radius: 50%; box-shadow: 0 0 6px rgba(244, 63, 94, 0.8); }
     </style>
@@ -104,7 +104,7 @@
         }
 
         const map = L.map('map').setView([19.5750, -154.9600], 11);
-        
+
         // Standard OpenStreetMap Tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
@@ -263,7 +263,7 @@
         function populateControls() {
             const routeSelect = document.getElementById('route-select');
             routeSelect.innerHTML = '';
-            
+
             let sortedRoutes = Object.keys(gtfsData.routes).map(id => ({ id, name: gtfsData.routes[id] }));
             sortedRoutes.sort((a, b) => a.name.localeCompare(b.name));
 
@@ -276,12 +276,12 @@
 
             const dateSelect = document.getElementById('date-select');
             dateSelect.innerHTML = '';
-            
+
             const today = new Date();
             for (let i = 0; i < 7; i++) {
                 let d = new Date(today);
                 d.setDate(today.getDate() + i);
-                
+
                 let year = d.getFullYear();
                 let month = String(d.getMonth() + 1).padStart(2, '0');
                 let day = String(d.getDate()).padStart(2, '0');
@@ -432,10 +432,10 @@
                 let points = gtfsData.shapes[shapeId];
                 if (points && points.length > 0) {
                     let lineCoords = points.map(p => [p.lat, p.lng]);
-                    let polyline = L.polyline(lineCoords, { 
-                        color: shapeColorMap[shapeId], 
-                        weight: 5, 
-                        opacity: 0.75 
+                    let polyline = L.polyline(lineCoords, {
+                        color: shapeColorMap[shapeId],
+                        weight: 5,
+                        opacity: 0.75
                     });
                     markersLayer.addLayer(polyline);
                     points.forEach(p => latLngs.push([p.lat, p.lng]));
@@ -489,7 +489,6 @@
                 }
             });
 
-            // Re-add custom pin if present
             if (customPinLatLng) {
                 let pinIcon = L.divIcon({ className: 'custom-pin-dot', iconSize: [12, 12], iconAnchor: [6, 6] });
                 let pinPopupContent = `
@@ -508,10 +507,9 @@
             }
         }
 
-        // Map Context Menu / Long-Press for Custom Pins
         map.on('contextmenu', function(e) {
             customPinLatLng = [e.latlng.lat, e.latlng.lng];
-            renderRoute(); // Refresh to draw pin
+            renderRoute();
             L.popup()
                 .setLatLng(e.latlng)
                 .setContent(`
@@ -605,25 +603,10 @@
 
             // 2. If no direct trips, check for 1-transfer connections through shared hub stops
             if (validTrips.length === 0) {
-                let startRoutes = new Set();
-                let endRoutes = new Set();
-
-                Object.keys(gtfsData.trips).forEach(tripId => {
-                    let trip = gtfsData.trips[tripId];
-                    if (isServiceActive(trip.service_id, targetDate)) {
-                        let stops = gtfsData.stopTimes[tripId] || [];
-                        if (stops.some(s => s.stop_id === tripPlanner.startStopId)) startRoutes.add(trip.route_id);
-                        if (stops.some(s => s.stop_id === tripPlanner.endStopId)) endRoutes.add(trip.route_id);
-                    }
-                });
-
-                // Find shared stops (hubs) between start routes and end routes
                 Object.keys(gtfsData.stops).forEach(hubId => {
                     if (hubId === tripPlanner.startStopId || hubId === tripPlanner.endStopId) return;
                     let hubStop = gtfsData.stops[hubId];
-                    
-                    // Check if hub has incoming trip from start and outgoing trip to end
-                    // (Simplified check for matching service connections)
+
                     let leg1Trips = [];
                     let leg2Trips = [];
 
@@ -653,7 +636,7 @@
 
                     leg1Trips.forEach(l1 => {
                         leg2Trips.forEach(l2 => {
-                            if (l2.dep >= l1.arr) { // Transfer is possible
+                            if (l2.dep >= l1.arr) {
                                 validTrips.push({
                                     type: 'transfer',
                                     hubName: hubStop.name,
@@ -676,7 +659,6 @@
 
             resultsList.innerHTML = '';
             if (validTrips.length > 0) {
-                // Render involved routes on map simultaneously
                 if (involvedRoutes.size > 0) {
                     renderRoutesMultiple(Array.from(involvedRoutes));
                 }
