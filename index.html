@@ -124,7 +124,7 @@
         let userMarker = null;
         let lastUserLatLng = null;
 
-        let gtfsData = { routes: {}, trips: {}, stops: {}, stopTimes: {}, shapes: {} };
+        let gtfsData = { routes: {}, trips: {}, stops: {}, stopTimes: {}, shapes: {}, calendar: {}, calendarDates: {} };
         let tripPlanner = { startStopId: null, endStopId: null };
 
         const shapeColors = ['#06b6d4', '#4ade80', '#38bdf8', '#22c55e', '#0284c7', '#10b981', '#0ea5e9', '#86efac'];
@@ -168,12 +168,14 @@
 
         async function loadGTFSData() {
             try {
-                const [routesText, stopsText, tripsText, stopTimesText, shapesText] = await Promise.all([
+                const [routesText, stopsText, tripsText, stopTimesText, shapesText, calendarText, calendarDatesText] = await Promise.all([
                     fetch('routes.txt').then(r => r.text()),
                     fetch('stops.txt').then(r => r.text()),
                     fetch('trips.txt').then(r => r.text()),
                     fetch('stop_times.txt').then(r => r.text()),
-                    fetch('shapes.txt').then(r => r.text())
+                    fetch('shapes.txt').then(r => r.text()),
+                    fetch('calendar.txt').then(r => r.text()),
+                    fetch('calendar_dates.txt').then(r => r.text()).catch(() => '')
                 ]);
 
                 parseCSV(routesText).forEach(row => {
@@ -232,11 +234,81 @@
                     gtfsData.shapes[sId].sort((a, b) => a.seq - b.seq);
                 });
 
+                parseCSV(calendarText).forEach(row => {
+                    gtfsData.calendar[row.service_id] = {
+                        startDate: row.start_date,
+                        endDate: row.end_date,
+                        days: [
+                            parseInt(row.sunday),
+                            parseInt(row.monday),
+                            parseInt(row.tuesday),
+                            parseInt(row.wednesday),
+                            parseInt(row.thursday),
+                            parseInt(row.friday),
+                            parseInt(row.saturday)
+                        ]
+                    };
+                });
+
+                parseCSV(calendarDatesText).forEach(row => {
+                    if (!gtfsData.calendarDates[row.date]) {
+                        gtfsData.calendarDates[row.date] = {};
+                    }
+                    gtfsData.calendarDates[row.date][row.service_id] = parseInt(row.exception_type);
+                });
+
                 populateRouteDropdown();
             } catch (err) {
                 console.error("Error loading GTFS files:", err);
                 document.getElementById('route-select').innerHTML = '<option>Error loading text files</option>';
             }
+        }
+
+        // Precise Calendar Engine Evaluation Function
+        function getTargetEvaluationDate() {
+            const dayType = document.getElementById('day-select').value;
+            const now = new Date();
+            const currentDayOfWeek = now.getDay(); // 0: Sun, 1: Mon, ..., 6: Sat
+
+            let targetDayOffset = 0;
+            if (dayType === 'weekday') {
+                if (currentDayOfWeek === 0) targetDayOffset = 1; // If Sunday, pick Monday
+                else if (currentDayOfWeek === 6) targetDayOffset = 2; // If Saturday, pick Monday
+            } else if (dayType === 'saturday') {
+                targetDayOffset = (6 - currentDayOfWeek + 7) % 7;
+            } else if (dayType === 'sunday') {
+                targetDayOffset = (0 - currentDayOfWeek + 7) % 7;
+            }
+
+            const targetDate = new Date(now);
+            targetDate.setDate(now.getDate() + targetDayOffset);
+            return targetDate;
+        }
+
+        function isServiceActive(serviceId, targetDate) {
+            const year = targetDate.getFullYear();
+            const month = String(targetDate.getMonth() + 1).padStart(2, '0');
+            const day = String(targetDate.getDate()).padStart(2, '0');
+            const dateStr = `${year}${month}${day}`;
+
+            // 1. Check calendar_dates exceptions first
+            if (gtfsData.calendarDates[dateStr] && gtfsData.calendarDates[dateStr][serviceId] !== undefined) {
+                return gtfsData.calendarDates[dateStr][serviceId] === 1;
+            }
+
+            // 2. Check calendar weekly rules
+            const rule = gtfsData.calendar[serviceId];
+            if (!rule) {
+                // Fallback if service_id is missing from calendar.txt entirely
+                return Object.keys(gtfsData.calendar).length === 0;
+            }
+
+            if (dateStr < rule.startDate || dateStr > rule.endDate) {
+                return false;
+            }
+
+            const dayOfWeek = targetDate.getDay();
+            return rule.days[dayOfWeek] === 1;
         }
 
         function populateRouteDropdown() {
@@ -299,24 +371,17 @@
 
         function renderRoute() {
             const routeId = document.getElementById('route-select').value;
-            const dayType = document.getElementById('day-select').value;
             markersLayer.clearLayers();
             if (!routeId) return;
 
+            const targetDate = getTargetEvaluationDate();
             let activeStopsMap = {};
             let activeShapes = new Set();
 
             Object.keys(gtfsData.trips).forEach(tripId => {
                 let trip = gtfsData.trips[tripId];
                 if (trip.route_id === routeId) {
-                    let sId = trip.service_id.toLowerCase();
-                    let isMatch = false;
-                    if (dayType === 'weekday' && (sId.includes('week') || sId.includes('mon') || sId.includes('wd'))) isMatch = true;
-                    if (dayType === 'saturday' && (sId.includes('sat') || sId.includes('we'))) isMatch = true;
-                    if (dayType === 'sunday' && (sId.includes('sun') || sId.includes('hol') || sId.includes('we'))) isMatch = true;
-                    if (!isMatch && Object.keys(gtfsData.trips).length < 500) isMatch = true; 
-
-                    if (isMatch) {
+                    if (isServiceActive(trip.service_id, targetDate)) {
                         if (trip.shape_id) {
                             activeShapes.add(trip.shape_id);
                         }
@@ -453,18 +518,11 @@
             title.textContent = `${startStop.name} ➔ ${endStop.name}`;
 
             let validTrips = [];
-            const dayType = document.getElementById('day-select').value;
+            const targetDate = getTargetEvaluationDate();
 
             Object.keys(gtfsData.trips).forEach(tripId => {
                 let trip = gtfsData.trips[tripId];
-                let sId = trip.service_id.toLowerCase();
-                let isMatch = false;
-                if (dayType === 'weekday' && (sId.includes('week') || sId.includes('mon') || sId.includes('wd'))) isMatch = true;
-                if (dayType === 'saturday' && (sId.includes('sat') || sId.includes('we'))) isMatch = true;
-                if (dayType === 'sunday' && (sId.includes('sun') || sId.includes('hol') || sId.includes('we'))) isMatch = true;
-                if (!isMatch && Object.keys(gtfsData.trips).length < 500) isMatch = true;
-
-                if (isMatch) {
+                if (isServiceActive(trip.service_id, targetDate)) {
                     let stops = gtfsData.stopTimes[tripId] || [];
                     let startIndex = -1, endIndex = -1;
                     for (let i = 0; i < stops.length; i++) {
@@ -509,7 +567,6 @@
             document.getElementById('planner-panel').classList.add('hidden');
         }
 
-        // Target button function: ONLY centers map on user GPS location
         function locateUser() {
             if (lastUserLatLng) {
                 map.setView(lastUserLatLng, 16);
@@ -525,7 +582,6 @@
             }
         }
 
-        // Bus stop button function: Finds nearest route/stop
         function findNearestRoute() {
             let executeFind = (latLng) => {
                 lastUserLatLng = latLng;
