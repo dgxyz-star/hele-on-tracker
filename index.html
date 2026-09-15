@@ -25,8 +25,10 @@
         .remove-row-btn { background: #475569; color: #f43f5e; border: 1px solid #64748b; border-radius: 4px; padding: 5px 8px; font-size: 0.75rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         .remove-row-btn:active { background: #64748b; }
 
-        .select-wrapper { flex: 1; min-width: 0; position: relative; }
-        select { width: 100%; min-width: 0; background: #334155; color: #fff; border: 1px solid #475569; padding: 5px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
+        .select-wrapper { flex: 1; min-width: 0; position: relative; display: flex; align-items: center; border-radius: 4px; border: 1px solid #475569; background: #334155; overflow: hidden; }
+        .route-color-indicator { width: 10px; align-self: stretch; background: transparent; flex-shrink: 0; transition: background 0.2s; }
+        select { width: 100%; min-width: 0; background: transparent; color: #fff; border: none; padding: 5px 6px; font-size: 0.75rem; font-weight: bold; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; outline: none; }
+        select option { background: #1e293b; color: #fff; }
 
         #map { flex: 1; width: 100%; background: #0f172a; z-index: 1; }
 
@@ -49,10 +51,10 @@
         .leaflet-popup-content { font-size: 0.75rem; line-height: 1.3; margin: 8px; max-width: 260px; }
         .popup-stop-name { font-weight: bold; color: #06b6d4; font-size: 0.8rem; margin-bottom: 2px; display: block; }
         .popup-stop-meta { font-size: 0.65rem; color: #94a3b8; margin-bottom: 6px; }
-        .popup-times-title { font-size: 0.6rem; color: #06b6d4; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 6px; margin-bottom: 2px; font-weight: bold; border-top: 1px solid #334155; padding-top: 4px; }
+        .popup-times-title { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 6px; margin-bottom: 2px; font-weight: bold; border-top: 1px solid #334155; padding-top: 4px; }
         .popup-times-list { list-style-type: none; padding-left: 0; max-height: 100px; overflow-y: auto; }
         .popup-times-list li { background: #0f172a; padding: 3px 6px; margin-bottom: 2px; border-radius: 3px; font-size: 0.65rem; display: flex; justify-content: space-between; gap: 4px; align-items: center; }
-        .time-group { font-family: monospace; color: #4ade80; font-weight: bold; white-space: nowrap; }
+        .time-group { font-family: monospace; font-weight: bold; white-space: nowrap; }
 
         .user-loc-dot { background: #06b6d4; border: 2px solid #ffffff; border-radius: 50%; box-shadow: 0 0 6px rgba(6, 182, 212, 0.8); }
     </style>
@@ -106,7 +108,6 @@
 
         const map = L.map('map', { zoomControl: false }).setView([19.5750, -154.9600], 11);
 
-        // Standard OpenStreetMap Tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; OpenStreetMap'
@@ -120,7 +121,6 @@
         let tripPlanner = { startStopId: null, endStopId: null };
         let availableRouteOptionsHtml = '<option value="">Select Route</option>';
 
-        // High-contrast vibrant palette for distinguishing multiple routes cleanly
         const vibrantRouteColors = ['#f43f5e', '#38bdf8', '#4ade80', '#f59e0b', '#a855f7', '#ec4899', '#14b8a6', '#84cc16', '#eab308', '#6366f1'];
 
         function parseCSV(text) {
@@ -317,7 +317,8 @@
             rowDiv.innerHTML = `
                 <button class="remove-row-btn" onclick="removeRouteRow(this)" title="Remove Route">✕</button>
                 <div class="select-wrapper">
-                    <select class="route-select-dropdown" onchange="redrawMapLayers(true)">${availableRouteOptionsHtml}</select>
+                    <div class="route-color-indicator"></div>
+                    <select class="route-select-dropdown" onchange="onRouteDropdownChange(this)">${availableRouteOptionsHtml}</select>
                 </div>
             `;
             container.appendChild(rowDiv);
@@ -325,8 +326,38 @@
             if (selectedRouteId) {
                 const selectEl = rowDiv.querySelector('.route-select-dropdown');
                 selectEl.value = selectedRouteId;
+                updateRowColorIndicator(selectEl);
                 redrawMapLayers(shouldCenter);
             }
+        }
+
+        function onRouteDropdownChange(selectEl) {
+            updateRowColorIndicator(selectEl);
+            redrawMapLayers(true);
+        }
+
+        function updateRowColorIndicator(selectEl) {
+            const selects = document.querySelectorAll('.route-select-dropdown');
+            let activeRouteIds = [];
+            selects.forEach(sel => {
+                if (sel.value && !activeRouteIds.includes(sel.value)) {
+                    activeRouteIds.push(sel.value);
+                }
+            });
+
+            let routeColorMap = {};
+            activeRouteIds.forEach((routeId, idx) => {
+                routeColorMap[routeId] = vibrantRouteColors[idx % vibrantRouteColors.length];
+            });
+
+            selects.forEach(sel => {
+                const indicator = sel.closest('.select-wrapper').querySelector('.route-color-indicator');
+                if (sel.value && routeColorMap[sel.value]) {
+                    indicator.style.background = routeColorMap[sel.value];
+                } else {
+                    indicator.style.background = 'transparent';
+                }
+            });
         }
 
         function removeRouteRow(btn) {
@@ -338,6 +369,7 @@
             } else {
                 const selectEl = rowDiv.querySelector('.route-select-dropdown');
                 selectEl.value = '';
+                updateRowColorIndicator(selectEl);
             }
             redrawMapLayers(false);
         }
@@ -422,14 +454,13 @@
 
             if (activeRouteIds.length === 0) return;
 
-            // Assign distinct color per route
             let routeColorMap = {};
             activeRouteIds.forEach((routeId, idx) => {
                 routeColorMap[routeId] = vibrantRouteColors[idx % vibrantRouteColors.length];
             });
 
             const targetDate = getTargetEvaluationDate();
-            let activeStopsMap = {};
+            let activeStopsMap = {}; // stopId -> { routeId: { destName: [times] } }
             let activeShapesMap = new Map(); // shapeId -> routeId
 
             activeRouteIds.forEach(routeId => {
@@ -450,14 +481,17 @@
                                     if (!activeStopsMap[st.stop_id]) {
                                         activeStopsMap[st.stop_id] = {};
                                     }
-                                    if (!activeStopsMap[st.stop_id][finalStopName]) {
-                                        activeStopsMap[st.stop_id][finalStopName] = [];
+                                    if (!activeStopsMap[st.stop_id][routeId]) {
+                                        activeStopsMap[st.stop_id][routeId] = {};
+                                    }
+                                    if (!activeStopsMap[st.stop_id][routeId][finalStopName]) {
+                                        activeStopsMap[st.stop_id][routeId][finalStopName] = [];
                                     }
 
                                     let localTime = st.dep || st.arr;
                                     let localLabel = st.dep ? 'D' : 'A';
                                     if (localTime) {
-                                        activeStopsMap[st.stop_id][finalStopName].push({
+                                        activeStopsMap[st.stop_id][routeId][finalStopName].push({
                                             sortTime: localTime,
                                             localText: `${localLabel} ${localTime}`,
                                             destText: finalArrTime ? `A ${finalArrTime}` : ''
@@ -498,29 +532,38 @@
                         finalIconColor = '#ef4444'; 
                     }
 
-                    let destinationsObj = activeStopsMap[stopId];
+                    let routesAtStop = activeStopsMap[stopId];
                     let schedulesHtml = '';
 
-                    Object.keys(destinationsObj).forEach(destName => {
-                        let rawTimesArr = destinationsObj[destName];
+                    Object.keys(routesAtStop).forEach(rId => {
+                        let rColor = routeColorMap[rId] || '#4ade80';
+                        let rawRouteObj = gtfsData.rawRoutes[rId] || {};
+                        let rDisplayName = rawRouteObj.route_short_name ? `Route ${rawRouteObj.route_short_name}` : `Route`;
+                        if (rawRouteObj.route_long_name) rDisplayName += `: ${rawRouteObj.route_long_name}`;
 
-                        // Deduplication map
-                        let uniqueMap = new Map();
-                        rawTimesArr.forEach(item => {
-                            let uniqueKey = `${item.sortTime}|${item.localText}|${item.destText}`;
-                            if (!uniqueMap.has(uniqueKey)) {
-                                uniqueMap.set(uniqueKey, item);
-                            }
+                        schedulesHtml += `<div class="popup-times-title" style="color: ${rColor};">${rDisplayName}</div>`;
+
+                        let destinationsObj = routesAtStop[rId];
+                        Object.keys(destinationsObj).forEach(destName => {
+                            let rawTimesArr = destinationsObj[destName];
+
+                            let uniqueMap = new Map();
+                            rawTimesArr.forEach(item => {
+                                let uniqueKey = `${item.sortTime}|${item.localText}|${item.destText}`;
+                                if (!uniqueMap.has(uniqueKey)) {
+                                    uniqueMap.set(uniqueKey, item);
+                                }
+                            });
+
+                            let timesArr = Array.from(uniqueMap.values()).sort((a, b) => a.sortTime.localeCompare(b.sortTime));
+
+                            schedulesHtml += `
+                                <div style="font-size:0.6rem; color:#94a3b8; margin-top:2px;">&rarr; ${destName}</div>
+                                <ul class="popup-times-list">
+                                    ${timesArr.map(item => `<li><span class="time-group" style="color: ${rColor};">${item.localText} &rarr; ${item.destText}</span></li>`).join('')}
+                                </ul>
+                            `;
                         });
-
-                        let timesArr = Array.from(uniqueMap.values()).sort((a, b) => a.sortTime.localeCompare(b.sortTime));
-
-                        schedulesHtml += `
-                            <div class="popup-times-title">&rarr; ${destName}</div>
-                            <ul class="popup-times-list">
-                                ${timesArr.map(item => `<li><span class="time-group">${item.localText} &rarr; ${item.destText}</span></li>`).join('')}
-                            </ul>
-                        `;
                     });
 
                     let popupContent = `
@@ -690,6 +733,7 @@
 
                         if (targetSelect) {
                             targetSelect.value = matchedRouteId;
+                            updateRowColorIndicator(targetSelect);
                             redrawMapLayers(true);
                         } else {
                             addRouteRow(matchedRouteId, true);
