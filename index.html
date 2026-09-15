@@ -472,8 +472,6 @@
                 colorIdx++;
             });
 
-            let latLngs = [];
-
             activeShapes.forEach(shapeId => {
                 let points = gtfsData.shapes[shapeId];
                 if (points && points.length > 0) {
@@ -484,18 +482,14 @@
                         opacity: 0.75
                     });
                     markersLayer.addLayer(polyline);
-                    points.forEach(p => latLngs.push([p.lat, p.lng]));
                 }
             });
 
             Object.keys(activeStopsMap).forEach(stopId => {
                 let stopInfo = gtfsData.stops[stopId];
                 if (stopInfo && !isNaN(stopInfo.lat) && !isNaN(stopInfo.lng)) {
-                    latLngs.push([stopInfo.lat, stopInfo.lng]);
-
                     let matchInfo = getClosestShapeMatch(stopInfo.lat, stopInfo.lng, activeShapes, shapeColorMap);
 
-                    // Customize arrow color if it's start or end stop
                     let finalIconColor = matchInfo.color;
                     if (stopId === tripPlanner.startStopId) {
                         finalIconColor = '#f97316'; // Orange for start stop
@@ -542,10 +536,6 @@
                     markersLayer.addLayer(marker);
                 }
             });
-
-            if (latLngs.length > 1) {
-                map.fitBounds(latLngs, { padding: [30, 30] });
-            }
         }
 
         function setPlannerStop(stopId, type) {
@@ -671,7 +661,23 @@
                     }
 
                     if (matchedRouteId) {
-                        addRouteRow(matchedRouteId);
+                        // Find the first dropdown that has no route selected ("")
+                        const selects = document.querySelectorAll('.route-select-dropdown');
+                        let targetSelect = null;
+                        for (let sel of selects) {
+                            if (!sel.value) {
+                                targetSelect = sel;
+                                break;
+                            }
+                        }
+
+                        if (targetSelect) {
+                            targetSelect.value = matchedRouteId;
+                            redrawMapLayers();
+                        } else {
+                            // If all rows are taken, add a new one with this route
+                            addRouteRow(matchedRouteId);
+                        }
                     }
                 }
             };
