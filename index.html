@@ -82,7 +82,7 @@
 
     <header id="main-header">
         <div class="header-top">
-            <h1>Hele-On GTFS Viewer</h1>
+            <h1></h1>
             <div class="header-top-controls">
                 <button class="gps-btn" onclick="locateUser()" title="Locate GPS">🎯</button>
                 <button class="refresh-btn" onclick="refreshSelectedRoutes()" title="Refresh Routes">R</button>
@@ -167,6 +167,9 @@
         function setCustomPin(lat, lng, type) {
             map.closePopup();
             
+            // Check if this is the absolute first custom pin being placed (both start and end are currently null)
+            const isFirst = (customPins.start.lat === null && customPins.end.lat === null);
+
             let pinColor = type === 'start' ? '#4ade80' : '#f43f5e';
             let labelText = type === 'start' ? 'A' : 'B';
 
@@ -188,11 +191,11 @@
                 marker: L.marker([lat, lng], { icon: pinIcon }).addTo(map)
             };
 
-            findAndAssignRouteForCoord(lat, lng);
+            assignRouteForPin(lat, lng, isFirst);
             evaluateTripPlanner();
         }
 
-        function findAndAssignRouteForCoord(lat, lng) {
+        function assignRouteForPin(lat, lng, isFirst) {
             let closestStopId = null;
             let minDist = Infinity;
             Object.keys(gtfsData.stops).forEach(stopId => {
@@ -218,11 +221,23 @@
                 }
 
                 if (matchedRouteId) {
-                    const firstSelect = document.querySelector('.route-select');
-                    if (firstSelect) {
-                        firstSelect.value = matchedRouteId;
-                        renderSelectedRoutes();
+                    const selects = document.querySelectorAll('.route-select');
+                    if (isFirst) {
+                        if (selects.length > 0) {
+                            selects[0].value = matchedRouteId;
+                        }
+                    } else {
+                        if (selects.length < 2) {
+                            addRouteDropdown();
+                        }
+                        const updatedSelects = document.querySelectorAll('.route-select');
+                        if (updatedSelects.length > 1) {
+                            updatedSelects[1].value = matchedRouteId;
+                        } else if (updatedSelects.length > 0) {
+                            updatedSelects[0].value = matchedRouteId;
+                        }
                     }
+                    renderSelectedRoutes();
                 }
             }
         }
