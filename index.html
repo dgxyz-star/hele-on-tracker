@@ -143,10 +143,6 @@
             end: { lat: null, lng: null, marker: null }
         };
 
-        // State tracking for nearest route toggle button
-        let isNearestRouteActive = false;
-        let lastNearestRouteId = null;
-
         const shapeColors = ['#06b6d4', '#4ade80', '#38bdf8', '#22c55e', '#0284c7', '#10b981', '#0ea5e9', '#86efac'];
 
         map.on('click', function(e) {
@@ -170,8 +166,6 @@
 
         function setCustomPin(lat, lng, type) {
             map.closePopup();
-            
-            const isFirst = (customPins.start.lat === null && customPins.end.lat === null);
 
             let pinColor = type === 'start' ? '#4ade80' : '#f43f5e';
             let labelText = type === 'start' ? 'A' : 'B';
@@ -194,11 +188,11 @@
                 marker: L.marker([lat, lng], { icon: pinIcon }).addTo(map)
             };
 
-            assignRouteForPin(lat, lng, isFirst);
+            assignRouteForPin(lat, lng);
             evaluateTripPlanner();
         }
 
-        function assignRouteForPin(lat, lng, isFirst) {
+        function assignRouteForPin(lat, lng) {
             let closestStopId = null;
             let minDist = Infinity;
             Object.keys(gtfsData.stops).forEach(stopId => {
@@ -224,24 +218,33 @@
                 }
 
                 if (matchedRouteId) {
-                    const selects = document.querySelectorAll('.route-select');
-                    if (isFirst) {
-                        if (selects.length > 0) {
-                            selects[0].value = matchedRouteId;
-                        }
-                    } else {
-                        if (selects.length < 2) {
-                            addRouteDropdown();
-                        }
-                        const updatedSelects = document.querySelectorAll('.route-select');
-                        if (updatedSelects.length > 1) {
-                            updatedSelects[1].value = matchedRouteId;
-                        } else if (updatedSelects.length > 0) {
-                            updatedSelects[0].value = matchedRouteId;
-                        }
-                    }
-                    renderSelectedRoutes();
+                    assignRouteToAvailableSlot(matchedRouteId);
                 }
+            }
+        }
+
+        function assignRouteToAvailableSlot(matchedRouteId) {
+            const selects = document.querySelectorAll('.route-select');
+            let targetSelect = null;
+
+            // Find first dropdown that is currently empty (not yet selected)
+            for (let sel of selects) {
+                if (!sel.value) {
+                    targetSelect = sel;
+                    break;
+                }
+            }
+
+            // If all current dropdowns have a selection, add a new dropdown row instead of overwriting
+            if (!targetSelect) {
+                addRouteDropdown();
+                const updatedSelects = document.querySelectorAll('.route-select');
+                targetSelect = updatedSelects[updatedSelects.length - 1];
+            }
+
+            if (targetSelect) {
+                targetSelect.value = matchedRouteId;
+                renderSelectedRoutes();
             }
         }
 
@@ -547,11 +550,6 @@
         }
 
         function renderSelectedRoutes() {
-            const firstSelect = document.querySelector('.route-select');
-            if (firstSelect && isNearestRouteActive && firstSelect.value !== lastNearestRouteId) {
-                isNearestRouteActive = false;
-            }
-
             markersLayer.clearLayers();
 
             if (customPins.start.marker) markersLayer.addLayer(customPins.start.marker);
@@ -756,19 +754,6 @@
         }
 
         function findNearestRoute() {
-            const firstSelect = document.querySelector('.route-select');
-
-            // If already active, second press clears the selection instead of zooming
-            if (isNearestRouteActive) {
-                if (firstSelect) {
-                    firstSelect.value = "";
-                    renderSelectedRoutes();
-                }
-                isNearestRouteActive = false;
-                lastNearestRouteId = null;
-                return;
-            }
-
             let executeFind = (latLng) => {
                 lastUserLatLng = latLng;
                 let closestStopId = null;
@@ -795,14 +780,10 @@
                         }
                     }
 
-                    if (matchedRouteId && firstSelect) {
-                        firstSelect.value = matchedRouteId;
-                        lastNearestRouteId = matchedRouteId;
-                        isNearestRouteActive = true;
-                        renderSelectedRoutes();
+                    if (matchedRouteId) {
+                        assignRouteToAvailableSlot(matchedRouteId);
                     }
                 }
-                map.setView(latLng, 15);
             };
 
             if (lastUserLatLng) {
