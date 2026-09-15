@@ -250,7 +250,6 @@
             return (brng + 360) % 360;
         }
 
-        // Helper to find the closest shape point bearing for a given stop coordinate
         function getStopBearing(stopLat, stopLng, shapePoints) {
             if (!shapePoints || shapePoints.length === 0) return 0;
             let closestIdx = 0;
@@ -265,7 +264,6 @@
                 }
             }
 
-            // Look at next point for bearing, or previous if at the very end
             let p1 = shapePoints[closestIdx];
             let p2 = shapePoints[closestIdx + 1] || shapePoints[closestIdx - 1];
             if (!p2) return 0;
@@ -335,7 +333,6 @@
 
             let latLngs = [];
 
-            // Draw clean route lines without extra clutter
             activeShapes.forEach(shapeId => {
                 let points = gtfsData.shapes[shapeId];
                 if (points && points.length > 0) {
@@ -346,7 +343,7 @@
                 }
             });
 
-            // Replace standard stop teardrops entirely with directional arrows
+            // Replace text triangles with a clean SVG navigation arrow icon
             Object.keys(activeStopsMap).forEach(stopId => {
                 let stopInfo = gtfsData.stops[stopId];
                 if (stopInfo && !isNaN(stopInfo.lat) && !isNaN(stopInfo.lng)) {
@@ -377,15 +374,20 @@
                         ${schedulesHtml}
                     `;
 
-                    let arrowIcon = L.divIcon({
-                        className: 'stop-arrow-marker',
-                        html: `<div style="transform: rotate(${bearing}deg); color: #38bdf8; font-size: 16px; font-weight: bold; text-shadow: 0 0 4px #0f172a, 0 0 2px #000; text-align: center;">▲</div>`,
-                        iconSize: [20, 20],
-                        iconAnchor: [10, 10],
-                        popupAnchor: [0, -8]
+                    // Using a proper clean SVG arrow graphic
+                    let svgArrowIcon = L.divIcon({
+                        className: 'stop-svg-arrow',
+                        html: `<div style="transform: rotate(${bearing}deg); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0px 0px 3px rgba(0,0,0,0.8));">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="#38bdf8" stroke="#0f172a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="12 2 19 21 12 17 5 21 12 2"></polygon>
+                            </svg>
+                        </div>`,
+                        iconSize: [24, 24],
+                        iconAnchor: [12, 12],
+                        popupAnchor: [0, -10]
                     });
 
-                    let marker = L.marker([stopInfo.lat, stopInfo.lng], { icon: arrowIcon }).bindPopup(popupContent);
+                    let marker = L.marker([stopInfo.lat, stopInfo.lng], { icon: svgArrowIcon }).bindPopup(popupContent);
                     markersLayer.addLayer(marker);
                 }
             });
