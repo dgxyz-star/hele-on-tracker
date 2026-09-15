@@ -9,24 +9,22 @@
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }
-        
+
         header { background: #1e293b; padding: 6px 8px; border-bottom: 1px solid #334155; display: flex; flex-direction: column; gap: 4px; z-index: 1000; transition: transform 0.3s ease; }
         header.collapsed { transform: translateY(-100%); position: absolute; width: 100%; pointer-events: none; }
         header.collapsed .header-top-controls { pointer-events: auto; }
 
-        .header-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; position: relative; }
-        h1 { font-size: 0.85rem; color: #06b6d4; text-align: left; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 2px; }
-        
+        .header-top { display: flex; align-items: center; justify-content: flex-end; gap: 8px; position: relative; }
         .header-top-controls { display: flex; gap: 4px; flex-shrink: 0; }
         .toggle-btn, .gps-btn, .action-top-btn { background: #334155; color: #06b6d4; border: 1px solid #475569; border-radius: 4px; padding: 4px 8px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
         .controls-row { display: flex; gap: 4px; width: 100%; min-width: 0; }
-        
+
         .select-wrapper { flex: 1; min-width: 0; position: relative; }
         select { width: 100%; min-width: 0; background: #334155; color: #fff; border: 1px solid #475569; padding: 5px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
-        
+
         #map { flex: 1; width: 100%; background: #0f172a; z-index: 1; }
-        
+
         .floating-toggle-container { position: absolute; top: 6px; right: 8px; z-index: 1001; display: none; gap: 4px; }
         body.header-is-collapsed .floating-toggle-container { display: flex; }
         .floating-btn { background: #1e293b; color: #06b6d4; border: 1px solid #475569; border-radius: 4px; padding: 6px 10px; font-size: 0.8rem; font-weight: bold; box-shadow: 0 2px 6px rgba(0,0,0,0.5); cursor: pointer; }
@@ -38,7 +36,7 @@
         .planner-routes-list { list-style: none; overflow-y: auto; max-height: 140px; padding-right: 2px; }
         .planner-routes-list li { background: #0f172a; padding: 6px; margin-bottom: 4px; border-radius: 4px; font-size: 0.7rem; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #4ade80; }
         .planner-times { font-family: monospace; color: #4ade80; font-weight: bold; }
-        
+
         .btn-action { background: #334155; color: #06b6d4; border: 1px solid #475569; padding: 4px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; cursor: pointer; margin-top: 4px; margin-right: 4px; }
         .btn-action:active { background: #475569; }
 
@@ -50,7 +48,7 @@
         .popup-times-list { list-style-type: none; padding-left: 0; max-height: 100px; overflow-y: auto; }
         .popup-times-list li { background: #0f172a; padding: 3px 6px; margin-bottom: 2px; border-radius: 3px; font-size: 0.65rem; display: flex; justify-content: space-between; gap: 4px; align-items: center; }
         .time-group { font-family: monospace; color: #4ade80; font-weight: bold; white-space: nowrap; }
-        
+
         .user-loc-dot { background: #06b6d4; border: 2px solid #ffffff; border-radius: 50%; box-shadow: 0 0 6px rgba(6, 182, 212, 0.8); }
     </style>
 </head>
@@ -59,24 +57,25 @@
     <div class="floating-toggle-container">
         <button class="floating-btn" onclick="locateUser()" title="Locate GPS">🎯</button>
         <button class="floating-btn" onclick="findNearestRoute()" title="Find Nearest Route">🚏</button>
+        <button class="floating-btn" onclick="addSelectedRoute()" title="Add Route">➕</button>
         <button class="floating-btn" onclick="toggleHeader()">▼</button>
     </div>
 
     <header id="main-header">
         <div class="header-top">
-            <h1>Hele-On GTFS Viewer</h1>
             <div class="header-top-controls">
                 <button class="gps-btn" onclick="locateUser()" title="Locate GPS">🎯</button>
                 <button class="action-top-btn" onclick="findNearestRoute()" title="Find Nearest Route">🚏</button>
+                <button class="action-top-btn" onclick="addSelectedRoute()" title="Add Route">➕</button>
                 <button class="toggle-btn" onclick="toggleHeader()">▲</button>
             </div>
         </div>
         <div class="controls-row">
             <div class="select-wrapper">
-                <select id="route-select" onchange="renderRoute()"><option value="">Loading routes...</option></select>
+                <select id="route-select" onchange="renderRoutes()"><option value="">Select Route</option></select>
             </div>
             <div class="select-wrapper" style="flex: 0.8;">
-                <select id="date-select" onchange="renderRoute()"></select>
+                <select id="date-select" onchange="renderRoutes()"></select>
             </div>
         </div>
     </header>
@@ -110,8 +109,9 @@
             }
         }
 
-        const map = L.map('map').setView([19.5750, -154.9600], 11);
-        
+        // Initialize map without zoom control buttons (+ / -)
+        const map = L.map('map', { zoomControl: false }).setView([19.5750, -154.9600], 11);
+
         // Standard OpenStreetMap Tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
@@ -124,6 +124,7 @@
 
         let gtfsData = { routes: {}, rawRoutes: {}, trips: {}, stops: {}, stopTimes: {}, shapes: {}, calendar: {}, calendarDates: {} };
         let tripPlanner = { startStopId: null, endStopId: null };
+        let activeRouteIds = new Set(); // Supports multiple displayed routes
 
         const shapeColors = ['#06b6d4', '#4ade80', '#38bdf8', '#22c55e', '#0284c7', '#10b981', '#0ea5e9', '#86efac'];
 
@@ -265,8 +266,8 @@
 
         function populateControls() {
             const routeSelect = document.getElementById('route-select');
-            routeSelect.innerHTML = '';
-            
+            routeSelect.innerHTML = '<option value="">Select Route</option>';
+
             let sortedRoutes = Object.keys(gtfsData.routes).map(id => {
                 let raw = gtfsData.rawRoutes[id] || {};
                 return {
@@ -276,17 +277,12 @@
                 };
             });
 
-            // Sort chronologically/numerically by route number (short name)
             sortedRoutes.sort((a, b) => {
                 let numA = parseFloat(a.shortName);
                 let numB = parseFloat(b.shortName);
-
-                // If both start with numbers, sort numerically
                 if (!isNaN(numA) && !isNaN(numB)) {
                     if (numA !== numB) return numA - numB;
                 }
-                
-                // Fallback to alphabetical sorting if numbers match or aren't present
                 return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
             });
 
@@ -299,12 +295,12 @@
 
             const dateSelect = document.getElementById('date-select');
             dateSelect.innerHTML = '';
-            
+
             const today = new Date();
             for (let i = 0; i < 7; i++) {
                 let d = new Date(today);
                 d.setDate(today.getDate() + i);
-                
+
                 let year = d.getFullYear();
                 let month = String(d.getMonth() + 1).padStart(2, '0');
                 let day = String(d.getDate()).padStart(2, '0');
@@ -318,10 +314,6 @@
                 opt.value = dateStr;
                 opt.textContent = friendlyLabel;
                 dateSelect.appendChild(opt);
-            }
-
-            if (sortedRoutes.length > 0) {
-                renderRoute();
             }
         }
 
@@ -393,49 +385,68 @@
             return { bearing, color };
         }
 
-        function renderRoute() {
-            const routeId = document.getElementById('route-select').value;
+        function renderRoutes() {
+            const selectedRouteId = document.getElementById('route-select').value;
+            if (selectedRouteId) {
+                activeRouteIds.add(selectedRouteId);
+            }
+            redrawMapLayers();
+        }
+
+        function addSelectedRoute() {
+            const selectedRouteId = document.getElementById('route-select').value;
+            if (!selectedRouteId) {
+                alert("Please select a route from the dropdown first.");
+                return;
+            }
+            activeRouteIds.add(selectedRouteId);
+            redrawMapLayers();
+        }
+
+        function redrawMapLayers() {
             markersLayer.clearLayers();
-            if (!routeId) return;
+            if (activeRouteIds.size === 0) return;
 
             const targetDate = getTargetEvaluationDate();
             let activeStopsMap = {};
             let activeShapes = new Set();
 
-            Object.keys(gtfsData.trips).forEach(tripId => {
-                let trip = gtfsData.trips[tripId];
-                if (trip.route_id === routeId) {
-                    if (isServiceActive(trip.service_id, targetDate)) {
-                        if (trip.shape_id) {
-                            activeShapes.add(trip.shape_id);
-                        }
-                        let tripStops = gtfsData.stopTimes[tripId];
-                        if (tripStops && tripStops.length > 0) {
-                            let finalStopEntry = tripStops[tripStops.length - 1];
-                            let finalStopName = (finalStopEntry && gtfsData.stops[finalStopEntry.stop_id]) ? gtfsData.stops[finalStopEntry.stop_id].name : (trip.headsign || 'Direct');
-                            let finalArrTime = finalStopEntry ? (finalStopEntry.arr || finalStopEntry.dep) : '';
+            activeRouteIds.forEach(routeId => {
+                Object.keys(gtfsData.trips).forEach(tripId => {
+                    let trip = gtfsData.trips[tripId];
+                    if (trip.route_id === routeId) {
+                        if (isServiceActive(trip.service_id, targetDate)) {
+                            if (trip.shape_id) {
+                                activeShapes.add(trip.shape_id);
+                            }
+                            let tripStops = gtfsData.stopTimes[tripId];
+                            if (tripStops && tripStops.length > 0) {
+                                let finalStopEntry = tripStops[tripStops.length - 1];
+                                let finalStopName = (finalStopEntry && gtfsData.stops[finalStopEntry.stop_id]) ? gtfsData.stops[finalStopEntry.stop_id].name : (trip.headsign || 'Direct');
+                                let finalArrTime = finalStopEntry ? (finalStopEntry.arr || finalStopEntry.dep) : '';
 
-                            tripStops.forEach(st => {
-                                if (!activeStopsMap[st.stop_id]) {
-                                    activeStopsMap[st.stop_id] = {};
-                                }
-                                if (!activeStopsMap[st.stop_id][finalStopName]) {
-                                    activeStopsMap[st.stop_id][finalStopName] = [];
-                                }
+                                tripStops.forEach(st => {
+                                    if (!activeStopsMap[st.stop_id]) {
+                                        activeStopsMap[st.stop_id] = {};
+                                    }
+                                    if (!activeStopsMap[st.stop_id][finalStopName]) {
+                                        activeStopsMap[st.stop_id][finalStopName] = [];
+                                    }
 
-                                let localTime = st.dep || st.arr;
-                                let localLabel = st.dep ? 'D' : 'A';
-                                if (localTime) {
-                                    activeStopsMap[st.stop_id][finalStopName].push({
-                                        sortTime: localTime,
-                                        localText: `${localLabel} ${localTime}`,
-                                        destText: finalArrTime ? `A ${finalArrTime}` : ''
-                                    });
-                                }
-                            });
+                                    let localTime = st.dep || st.arr;
+                                    let localLabel = st.dep ? 'D' : 'A';
+                                    if (localTime) {
+                                        activeStopsMap[st.stop_id][finalStopName].push({
+                                            sortTime: localTime,
+                                            localText: `${localLabel} ${localTime}`,
+                                            destText: finalArrTime ? `A ${finalArrTime}` : ''
+                                        });
+                                    }
+                                });
+                            }
                         }
                     }
-                }
+                });
             });
 
             let shapeColorMap = {};
@@ -451,10 +462,10 @@
                 let points = gtfsData.shapes[shapeId];
                 if (points && points.length > 0) {
                     let lineCoords = points.map(p => [p.lat, p.lng]);
-                    let polyline = L.polyline(lineCoords, { 
-                        color: shapeColorMap[shapeId], 
-                        weight: 5, 
-                        opacity: 0.75 
+                    let polyline = L.polyline(lineCoords, {
+                        color: shapeColorMap[shapeId],
+                        weight: 5,
+                        opacity: 0.75
                     });
                     markersLayer.addLayer(polyline);
                     points.forEach(p => latLngs.push([p.lat, p.lng]));
@@ -635,10 +646,11 @@
 
                     if (matchedRouteId) {
                         document.getElementById('route-select').value = matchedRouteId;
-                        renderRoute();
+                        activeRouteIds.add(matchedRouteId);
+                        redrawMapLayers();
                     }
                 }
-                map.setView(latLng, 15);
+                // Removed map.setView to prevent zooming into location when finding nearest route
             };
 
             if (lastUserLatLng) {
