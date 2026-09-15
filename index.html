@@ -21,7 +21,6 @@
         .toggle-btn, .gps-btn, .action-top-btn { background: #334155; color: #06b6d4; border: 1px solid #475569; border-radius: 4px; padding: 4px 8px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
         .controls-row { display: flex; gap: 4px; width: 100%; min-width: 0; }
-
         .select-wrapper { flex: 1; min-width: 0; position: relative; }
         select { width: 100%; min-width: 0; background: #334155; color: #fff; border: 1px solid #475569; padding: 5px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
 
@@ -76,9 +75,6 @@
             <div class="select-wrapper">
                 <select id="route-select" onchange="renderRoute()"><option value="">Loading routes...</option></select>
             </div>
-            <div class="select-wrapper" style="flex: 0.8;">
-                <select id="date-select" onchange="renderRoute()"></select>
-            </div>
         </div>
     </header>
 
@@ -113,10 +109,9 @@
         let markersLayer = L.layerGroup().addTo(map);
         let userMarker = null;
         let lastUserLatLng = null;
-        let customPinMarker = null;
         let customPinLatLng = null;
 
-        let gtfsData = { routes: {}, trips: {}, stops: {}, stopTimes: {}, shapes: {}, calendar: {}, calendarDates: {}, transfers: [] };
+        let gtfsData = { routes: {}, trips: {}, stops: {}, stopTimes: {}, shapes: {} };
         let tripPlanner = { startStopId: null, endStopId: null };
 
         const shapeColors = ['#06b6d4', '#4ade80', '#38bdf8', '#22c55e', '#0284c7', '#10b981', '#0ea5e9', '#86efac'];
@@ -158,17 +153,25 @@
             return res;
         }
 
+        function timeToSeconds(t) {
+            if (!t) return 0;
+            let parts = t.split(':').map(Number);
+            return (parts[0] || 0) * 3600 + (parts[1] || 0) * 60 + (parts[2] || 0);
+        }
+
+        function getCurrentClockSeconds() {
+            const now = new Date();
+            return now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+        }
+
         async function loadGTFSData() {
             try {
-                const [routesText, stopsText, tripsText, stopTimesText, shapesText, calendarText, calendarDatesText, transfersText] = await Promise.all([
+                const [routesText, stopsText, tripsText, stopTimesText, shapesText] = await Promise.all([
                     fetch('routes.txt').then(r => r.text()),
                     fetch('stops.txt').then(r => r.text()),
                     fetch('trips.txt').then(r => r.text()),
                     fetch('stop_times.txt').then(r => r.text()),
-                    fetch('shapes.txt').then(r => r.text()),
-                    fetch('calendar.txt').then(r => r.text()),
-                    fetch('calendar_dates.txt').then(r => r.text()).catch(() => ''),
-                    fetch('transfers.txt').then(r => r.text()).catch(() => '')
+                    fetch('shapes.txt').then(r => r.text())
                 ]);
 
                 parseCSV(routesText).forEach(row => {
@@ -189,7 +192,6 @@
                 parseCSV(tripsText).forEach(row => {
                     gtfsData.trips[row.trip_id] = {
                         route_id: row.route_id,
-                        service_id: row.service_id,
                         shape_id: row.shape_id,
                         headsign: row.trip_headsign || ''
                     };
@@ -227,31 +229,6 @@
                     gtfsData.shapes[sId].sort((a, b) => a.seq - b.seq);
                 });
 
-                parseCSV(calendarText).forEach(row => {
-                    gtfsData.calendar[row.service_id] = {
-                        startDate: row.start_date,
-                        endDate: row.end_date,
-                        days: [
-                            parseInt(row.sunday),
-                            parseInt(row.monday),
-                            parseInt(row.tuesday),
-                            parseInt(row.wednesday),
-                            parseInt(row.thursday),
-                            parseInt(row.friday),
-                            parseInt(row.saturday)
-                        ]
-                    };
-                });
-
-                parseCSV(calendarDatesText).forEach(row => {
-                    if (!gtfsData.calendarDates[row.date]) {
-                        gtfsData.calendarDates[row.date] = {};
-                    }
-                    gtfsData.calendarDates[row.date][row.service_id] = parseInt(row.exception_type);
-                });
-
-                gtfsData.transfers = parseCSV(transfersText);
-
                 populateControls();
             } catch (err) {
                 console.error("Error loading GTFS files:", err);
@@ -273,64 +250,9 @@
                 routeSelect.appendChild(opt);
             });
 
-            const dateSelect = document.getElementById('date-select');
-            dateSelect.innerHTML = '';
-
-            const today = new Date();
-            for (let i = 0; i < 7; i++) {
-                let d = new Date(today);
-                d.setDate(today.getDate() + i);
-
-                let year = d.getFullYear();
-                let month = String(d.getMonth() + 1).padStart(2, '0');
-                let day = String(d.getDate()).padStart(2, '0');
-                let dateStr = `${year}${month}${day}`;
-
-                let labelOptions = { weekday: 'short', month: 'short', day: 'numeric' };
-                let friendlyLabel = d.toLocaleDateString('en-US', labelOptions);
-                if (i === 0) friendlyLabel = `Today (${friendlyLabel})`;
-
-                let opt = document.createElement('option');
-                opt.value = dateStr;
-                opt.textContent = friendlyLabel;
-                dateSelect.appendChild(opt);
-            }
-
             if (sortedRoutes.length > 0) {
                 renderRoute();
             }
-        }
-
-        function getTargetEvaluationDate() {
-            const val = document.getElementById('date-select').value;
-            if (!val || val.length !== 8) return new Date();
-            let year = parseInt(val.substring(0, 4));
-            let month = parseInt(val.substring(4, 6)) - 1;
-            let day = parseInt(val.substring(6, 8));
-            return new Date(year, month, day);
-        }
-
-        function isServiceActive(serviceId, targetDate) {
-            const year = targetDate.getFullYear();
-            const month = String(targetDate.getMonth() + 1).padStart(2, '0');
-            const day = String(targetDate.getDate()).padStart(2, '0');
-            const dateStr = `${year}${month}${day}`;
-
-            if (gtfsData.calendarDates[dateStr] && gtfsData.calendarDates[dateStr][serviceId] !== undefined) {
-                return gtfsData.calendarDates[dateStr][serviceId] === 1;
-            }
-
-            const rule = gtfsData.calendar[serviceId];
-            if (!rule) {
-                return Object.keys(gtfsData.calendar).length === 0;
-            }
-
-            if (dateStr < rule.startDate || dateStr > rule.endDate) {
-                return false;
-            }
-
-            const dayOfWeek = targetDate.getDay();
-            return rule.days[dayOfWeek] === 1;
         }
 
         function calculateBearing(lat1, lon1, lat2, lon2) {
@@ -377,7 +299,6 @@
 
         function renderRoutesMultiple(routeIdsArray) {
             markersLayer.clearLayers();
-            const targetDate = getTargetEvaluationDate();
             let activeStopsMap = {};
             let activeShapes = new Set();
             let targetRouteSet = new Set(routeIdsArray);
@@ -385,35 +306,27 @@
             Object.keys(gtfsData.trips).forEach(tripId => {
                 let trip = gtfsData.trips[tripId];
                 if (targetRouteSet.has(trip.route_id)) {
-                    if (isServiceActive(trip.service_id, targetDate)) {
-                        if (trip.shape_id) {
-                            activeShapes.add(trip.shape_id);
-                        }
-                        let tripStops = gtfsData.stopTimes[tripId];
-                        if (tripStops && tripStops.length > 0) {
-                            let finalStopEntry = tripStops[tripStops.length - 1];
-                            let finalStopName = (finalStopEntry && gtfsData.stops[finalStopEntry.stop_id]) ? gtfsData.stops[finalStopEntry.stop_id].name : (trip.headsign || 'Direct');
-                            let finalArrTime = finalStopEntry ? (finalStopEntry.arr || finalStopEntry.dep) : '';
+                    if (trip.shape_id) activeShapes.add(trip.shape_id);
+                    let tripStops = gtfsData.stopTimes[tripId];
+                    if (tripStops && tripStops.length > 0) {
+                        let finalStopEntry = tripStops[tripStops.length - 1];
+                        let finalStopName = (finalStopEntry && gtfsData.stops[finalStopEntry.stop_id]) ? gtfsData.stops[finalStopEntry.stop_id].name : (trip.headsign || 'Direct');
+                        let finalArrTime = finalStopEntry ? (finalStopEntry.arr || finalStopEntry.dep) : '';
 
-                            tripStops.forEach(st => {
-                                if (!activeStopsMap[st.stop_id]) {
-                                    activeStopsMap[st.stop_id] = {};
-                                }
-                                if (!activeStopsMap[st.stop_id][finalStopName]) {
-                                    activeStopsMap[st.stop_id][finalStopName] = [];
-                                }
+                        tripStops.forEach(st => {
+                            if (!activeStopsMap[st.stop_id]) activeStopsMap[st.stop_id] = {};
+                            if (!activeStopsMap[st.stop_id][finalStopName]) activeStopsMap[st.stop_id][finalStopName] = [];
 
-                                let localTime = st.dep || st.arr;
-                                let localLabel = st.dep ? 'D' : 'A';
-                                if (localTime) {
-                                    activeStopsMap[st.stop_id][finalStopName].push({
-                                        sortTime: localTime,
-                                        localText: `${localLabel} ${localTime}`,
-                                        destText: finalArrTime ? `A ${finalArrTime}` : ''
-                                    });
-                                }
-                            });
-                        }
+                            let localTime = st.dep || st.arr;
+                            let localLabel = st.dep ? 'D' : 'A';
+                            if (localTime) {
+                                activeStopsMap[st.stop_id][finalStopName].push({
+                                    sortTime: localTime,
+                                    localText: `${localLabel} ${localTime}`,
+                                    destText: finalArrTime ? `A ${finalArrTime}` : ''
+                                });
+                            }
+                        });
                     }
                 }
             });
@@ -426,16 +339,11 @@
             });
 
             let latLngs = [];
-
             activeShapes.forEach(shapeId => {
                 let points = gtfsData.shapes[shapeId];
                 if (points && points.length > 0) {
                     let lineCoords = points.map(p => [p.lat, p.lng]);
-                    let polyline = L.polyline(lineCoords, {
-                        color: shapeColorMap[shapeId],
-                        weight: 5,
-                        opacity: 0.75
-                    });
+                    let polyline = L.polyline(lineCoords, { color: shapeColorMap[shapeId], weight: 5, opacity: 0.75 });
                     markersLayer.addLayer(polyline);
                     points.forEach(p => latLngs.push([p.lat, p.lng]));
                 }
@@ -445,12 +353,10 @@
                 let stopInfo = gtfsData.stops[stopId];
                 if (stopInfo && !isNaN(stopInfo.lat) && !isNaN(stopInfo.lng)) {
                     latLngs.push([stopInfo.lat, stopInfo.lng]);
-
                     let matchInfo = getClosestShapeMatch(stopInfo.lat, stopInfo.lng, activeShapes, shapeColorMap);
 
                     let destinationsObj = activeStopsMap[stopId];
                     let schedulesHtml = '';
-
                     Object.keys(destinationsObj).forEach(destName => {
                         let timesArr = destinationsObj[destName].sort((a, b) => a.sortTime.localeCompare(b.sortTime));
                         schedulesHtml += `
@@ -492,7 +398,7 @@
                 let pinIcon = L.divIcon({ className: 'custom-pin-dot', iconSize: [12, 12], iconAnchor: [6, 6] });
                 let pinPopupContent = `
                     <span class="popup-stop-name">Custom Pin</span>
-                    <div class="popup-stop-meta">Snapped to nearest stop or destination</div>
+                    <div class="popup-stop-meta">Snapped to nearest stop</div>
                     <div>
                         <button class="btn-action" onclick="setPlannerStopFromCoords('start')">📍 Set Start Here</button>
                         <button class="btn-action" onclick="setPlannerStopFromCoords('end')">🏁 Set End Here</button>
@@ -541,17 +447,12 @@
         function setPlannerStopFromCoords(type) {
             if (!customPinLatLng) return;
             let nearestId = findNearestStopId(customPinLatLng[0], customPinLatLng[1]);
-            if (nearestId) {
-                setPlannerStop(nearestId, type);
-            }
+            if (nearestId) setPlannerStop(nearestId, type);
         }
 
         function setPlannerStop(stopId, type) {
-            if (type === 'start') {
-                tripPlanner.startStopId = stopId;
-            } else {
-                tripPlanner.endStopId = stopId;
-            }
+            if (type === 'start') tripPlanner.startStopId = stopId;
+            else tripPlanner.endStopId = stopId;
             map.closePopup();
             evaluateTripPlanner();
         }
@@ -565,7 +466,7 @@
                 panel.classList.remove('hidden');
                 let startName = tripPlanner.startStopId ? gtfsData.stops[tripPlanner.startStopId].name : 'Not set';
                 let endName = tripPlanner.endStopId ? gtfsData.stops[tripPlanner.endStopId].name : 'Not set';
-                title.textContent = `Planner: ${tripPlanner.startStopId ? '📍 Start Set' : 'Select Start'} → ${tripPlanner.endStopId ? '🏁 End Set' : 'Select End'}`;
+                title.textContent = `Planner: ${tripPlanner.startStopId ? '📍 Start' : 'Select Start'} → ${tripPlanner.endStopId ? '🏁 End' : 'Select End'}`;
                 resultsList.innerHTML = `<li style="justify-content:center; color:#94a3b8;">From: ${startName}<br>To: ${endName}</li>`;
                 return;
             }
@@ -576,64 +477,84 @@
 
             let validTrips = [];
             let involvedRoutes = new Set();
-            const targetDate = getTargetEvaluationDate();
+            const currentSeconds = getCurrentClockSeconds();
 
-            // Build a transfer lookup map (supports exact ID + transfers.txt + proximity hub matching)
-            let transferMap = {};
-            Object.keys(gtfsData.stops).forEach(id => {
-                transferMap[id] = new Set([id]);
-            });
-            gtfsData.transfers.forEach(t => {
-                if (t.from_stop_id && t.to_stop_id) {
-                    if (!transferMap[t.from_stop_id]) transferMap[t.from_stop_id] = new Set([t.from_stop_id]);
-                    transferMap[t.from_stop_id].add(t.to_stop_id);
-                }
-            });
-
-            // Also auto-group stops within ~150 meters as valid transfer hubs (e.g. multi-platform stations)
-            let stopEntries = Object.keys(gtfsData.stops);
-            for (let i = 0; i < stopEntries.length; i++) {
-                let id1 = stopEntries[i];
-                let s1 = gtfsData.stops[id1];
-                if (isNaN(s1.lat) || isNaN(s1.lng)) continue;
-                for (let j = i + 1; j < stopEntries.length; j++) {
-                    let id2 = stopEntries[j];
-                    let s2 = gtfsData.stops[id2];
-                    if (isNaN(s2.lat) || isNaN(s2.lng)) continue;
-                    // rough coordinate diff check (~150m)
-                    if (Math.abs(s1.lat - s2.lat) < 0.0015 && Math.abs(s1.lng - s2.lng) < 0.0015) {
-                        transferMap[id1].add(id2);
-                        transferMap[id2].add(id1);
-                    }
-                }
-            }
-
-            // 1. Check for Direct Trips
+            // 1. Direct Trips Check (Filtering for future clock time)
             Object.keys(gtfsData.trips).forEach(tripId => {
                 let trip = gtfsData.trips[tripId];
-                if (isServiceActive(trip.service_id, targetDate)) {
-                    let stops = gtfsData.stopTimes[tripId] || [];
-                    let startIndex = -1, endIndex = -1;
-                    for (let i = 0; i < stops.length; i++) {
-                        if (stops[i].stop_id === tripPlanner.startStopId) startIndex = i;
-                        if (stops[i].stop_id === tripPlanner.endStopId) endIndex = i;
-                    }
+                let stops = gtfsData.stopTimes[tripId] || [];
+                let startIndex = -1, endIndex = -1;
+                for (let i = 0; i < stops.length; i++) {
+                    if (stops[i].stop_id === tripPlanner.startStopId) startIndex = i;
+                    if (stops[i].stop_id === tripPlanner.endStopId) endIndex = i;
+                }
 
-                    if (startIndex !== -1 && endIndex !== -1 && startIndex < endIndex) {
-                        let depTime = stops[startIndex].dep || stops[startIndex].arr;
-                        let arrTime = stops[endIndex].arr || stops[endIndex].dep;
+                if (startIndex !== -1 && endIndex !== -1 && startIndex < endIndex) {
+                    let depTimeStr = stops[startIndex].dep || stops[startIndex].arr;
+                    let arrTimeStr = stops[endIndex].arr || stops[endIndex].dep;
+                    let depSec = timeToSeconds(depTimeStr);
+
+                    if (depSec >= currentSeconds) {
                         let finalStopEntry = stops[stops.length - 1];
                         let destName = (finalStopEntry && gtfsData.stops[finalStopEntry.stop_id]) ? gtfsData.stops[finalStopEntry.stop_id].name : 'Direct';
-                        validTrips.push({ type: 'direct', routeId: trip.route_id, depTime, arrTime, headsign: destName });
+                        validTrips.push({
+                            type: 'direct',
+                            routeId: trip.route_id,
+                            depTime: depTimeStr,
+                            arrTime: arrTimeStr,
+                            depSec: depSec,
+                            headsign: destName
+                        });
                         involvedRoutes.add(trip.route_id);
                     }
                 }
             });
 
-            // 2. Check for 1-transfer connections across all routes using the transfer/proximity map
+            // 2. Unrestricted Nearest-Neighbor Transfer Check
+            let stopToRoutes = {};
+            Object.keys(gtfsData.trips).forEach(tripId => {
+                let trip = gtfsData.trips[tripId];
+                let stops = gtfsData.stopTimes[tripId] || [];
+                stops.forEach(st => {
+                    if (!stopToRoutes[st.stop_id]) stopToRoutes[st.stop_id] = new Set();
+                    stopToRoutes[st.stop_id].add(trip.route_id);
+                });
+            });
+
+            let allStopIds = Object.keys(gtfsData.stops);
+            let nearestOtherRouteStop = {};
+
+            allStopIds.forEach(id1 => {
+                let s1 = gtfsData.stops[id1];
+                if (isNaN(s1.lat) || isNaN(s1.lng)) return;
+                let rSet1 = stopToRoutes[id1] || new Set();
+                let closestId = null;
+                let minDist = Infinity;
+
+                allStopIds.forEach(id2 => {
+                    if (id1 === id2) return;
+                    let rSet2 = stopToRoutes[id2] || new Set();
+                    let hasDifferentRoute = false;
+                    for (let r of rSet2) {
+                        if (!rSet1.has(r)) { hasDifferentRoute = true; break; }
+                    }
+                    if (!hasDifferentRoute) return;
+
+                    let s2 = gtfsData.stops[id2];
+                    if (isNaN(s2.lat) || isNaN(s2.lng)) return;
+
+                    let dist = Math.pow(s1.lat - s2.lat, 2) + Math.pow(s1.lng - s2.lng, 2);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        closestId = id2;
+                    }
+                });
+
+                if (closestId) nearestOtherRouteStop[id1] = closestId;
+            });
+
             Object.keys(gtfsData.trips).forEach(trip1Id => {
                 let trip1 = gtfsData.trips[trip1Id];
-                if (!isServiceActive(trip1.service_id, targetDate)) return;
                 let stops1 = gtfsData.stopTimes[trip1Id] || [];
                 let sIdx = -1;
                 for (let i = 0; i < stops1.length; i++) {
@@ -641,55 +562,54 @@
                 }
                 if (sIdx === -1) return;
 
-                // Find all potential transfer points on trip 1 after sIdx
+                let l1Dep = stops1[sIdx].dep || stops1[sIdx].arr;
+                let depSec = timeToSeconds(l1Dep);
+                if (depSec < currentSeconds) return;
+
                 for (let i = sIdx + 1; i < stops1.length; i++) {
                     let hub1Id = stops1[i].stop_id;
-                    let l1Dep = stops1[sIdx].dep || stops1[sIdx].arr;
                     let l1Arr = stops1[i].arr || stops1[i].dep;
+                    let hub2Id = nearestOtherRouteStop[hub1Id];
+                    if (!hub2Id) continue;
 
-                    // Now check trip 2
                     Object.keys(gtfsData.trips).forEach(trip2Id => {
                         let trip2 = gtfsData.trips[trip2Id];
-                        if (trip1.route_id === trip2.route_id) return; // Must be a transfer to a different route
-                        if (!isServiceActive(trip2.service_id, targetDate)) return;
+                        if (trip1.route_id === trip2.route_id) return;
 
                         let stops2 = gtfsData.stopTimes[trip2Id] || [];
                         let eIdx = -1;
+                        let h2Idx = -1;
                         for (let k = 0; k < stops2.length; k++) {
-                            if (stops2[k].stop_id === tripPlanner.endStopId) { eIdx = k; break; }
+                            if (stops2[k].stop_id === hub2Id) h2Idx = k;
+                            if (stops2[k].stop_id === tripPlanner.endStopId) eIdx = k;
                         }
-                        if (eIdx === -1) return;
 
-                        // Check if any stop on trip 2 before eIdx connects to hub1Id via transferMap
-                        for (let j = 0; j < eIdx; j++) {
-                            let hub2Id = stops2[j].stop_id;
-                            // Check if hub1Id can transfer to hub2Id
-                            if (transferMap[hub1Id] && transferMap[hub1Id].has(hub2Id)) {
-                                let l2Dep = stops2[j].dep || stops2[j].arr;
-                                let l2Arr = stops2[eIdx].arr || stops2[eIdx].dep;
+                        if (h2Idx !== -1 && eIdx !== -1 && h2Idx < eIdx) {
+                            let l2Dep = stops2[h2Idx].dep || stops2[h2Idx].arr;
+                            let l2Arr = stops2[eIdx].arr || stops2[eIdx].dep;
 
-                                // Allow transfer if bus 2 departs at or after bus 1 arrives (with up to 4 hours window)
-                                if (l2Dep >= l1Arr) {
-                                    validTrips.push({
-                                        type: 'transfer',
-                                        hubName: gtfsData.stops[hub1Id].name,
-                                        route1: trip1.route_id,
-                                        route2: trip2.route_id,
-                                        depTime: l1Dep,
-                                        transferArr: l1Arr,
-                                        transferDep: l2Dep,
-                                        arrTime: l2Arr
-                                    });
-                                    involvedRoutes.add(trip1.route_id);
-                                    involvedRoutes.add(trip2.route_id);
-                                }
+                            if (timeToSeconds(l2Dep) >= timeToSeconds(l1Arr)) {
+                                validTrips.push({
+                                    type: 'transfer',
+                                    hubName: `${gtfsData.stops[hub1Id].name} ➔ ${gtfsData.stops[hub2Id].name}`,
+                                    route1: trip1.route_id,
+                                    route2: trip2.route_id,
+                                    depTime: l1Dep,
+                                    depSec: depSec,
+                                    transferArr: l1Arr,
+                                    transferDep: l2Dep,
+                                    arrTime: l2Arr
+                                });
+                                involvedRoutes.add(trip1.route_id);
+                                involvedRoutes.add(trip2.route_id);
                             }
                         }
                     });
                 }
             });
 
-            validTrips.sort((a, b) => a.depTime.localeCompare(b.depTime));
+            // Sort strictly by the nearest upcoming clock time
+            validTrips.sort((a, b) => a.depSec - b.depSec);
 
             resultsList.innerHTML = '';
             if (validTrips.length > 0) {
@@ -709,15 +629,15 @@
                     } else {
                         li.innerHTML = `
                             <div>
-                                <div class="planner-times">${vt.depTime} &rarr; Hub: ${vt.hubName} (${vt.transferArr}) | Dep: ${vt.transferDep} &rarr; ${vt.arrTime}</div>
-                                <div style="font-size:0.6rem; color:#cbd5e1;">Transfer via ${vt.hubName} (${gtfsData.routes[vt.route1]} ➔ ${gtfsData.routes[vt.route2]})</div>
+                                <div class="planner-times">${vt.depTime} &rarr; Transfer: ${vt.hubName} (${vt.transferArr}) | Dep: ${vt.transferDep} &rarr; ${vt.arrTime}</div>
+                                <div style="font-size:0.6rem; color:#cbd5e1;">${gtfsData.routes[vt.route1]} ➔ ${gtfsData.routes[vt.route2]}</div>
                             </div>
                         `;
                     }
                     resultsList.appendChild(li);
                 });
             } else {
-                resultsList.innerHTML = `<li style="justify-content:center; color:#f43f5e;">No direct or 1-transfer trips found between these points for this schedule.</li>`;
+                resultsList.innerHTML = `<li style="justify-content:center; color:#f43f5e;">No upcoming trips found matching current clock time.</li>`;
             }
 
             panel.classList.remove('hidden');
@@ -749,18 +669,7 @@
         function findNearestRoute() {
             let executeFind = (latLng) => {
                 lastUserLatLng = latLng;
-                let closestStopId = null;
-                let minDist = Infinity;
-                Object.keys(gtfsData.stops).forEach(stopId => {
-                    let s = gtfsData.stops[stopId];
-                    if (!isNaN(s.lat) && !isNaN(s.lng)) {
-                        let dist = Math.pow(s.lat - latLng[0], 2) + Math.pow(s.lng - latLng[1], 2);
-                        if (dist < minDist) {
-                            minDist = dist;
-                            closestStopId = stopId;
-                        }
-                    }
-                });
+                let closestStopId = findNearestStopId(latLng[0], latLng[1]);
 
                 if (closestStopId) {
                     let matchedRouteId = null;
