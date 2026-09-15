@@ -305,7 +305,6 @@
                 dateSelect.appendChild(opt);
             }
 
-            // Start with one route selection row by default (passed false so it doesn't move map on startup)
             addRouteRow('', false);
         }
 
@@ -495,16 +494,28 @@
 
                     let finalIconColor = matchInfo.color;
                     if (stopId === tripPlanner.startStopId) {
-                        finalIconColor = '#f97316'; // Orange for start stop
+                        finalIconColor = '#f97316'; 
                     } else if (stopId === tripPlanner.endStopId) {
-                        finalIconColor = '#ef4444'; // Red for end stop
+                        finalIconColor = '#ef4444'; 
                     }
 
                     let destinationsObj = activeStopsMap[stopId];
                     let schedulesHtml = '';
 
                     Object.keys(destinationsObj).forEach(destName => {
-                        let timesArr = destinationsObj[destName].sort((a, b) => a.sortTime.localeCompare(b.sortTime));
+                        let rawTimesArr = destinationsObj[destName];
+
+                        // Programmatic deduplication map
+                        let uniqueMap = new Map();
+                        rawTimesArr.forEach(item => {
+                            let uniqueKey = `${item.sortTime}|${item.localText}|${item.destText}`;
+                            if (!uniqueMap.has(uniqueKey)) {
+                                uniqueMap.set(uniqueKey, item);
+                            }
+                        });
+
+                        let timesArr = Array.from(uniqueMap.values()).sort((a, b) => a.sortTime.localeCompare(b.sortTime));
+
                         schedulesHtml += `
                             <div class="popup-times-title">&rarr; ${destName}</div>
                             <ul class="popup-times-list">
@@ -541,7 +552,6 @@
                 }
             });
 
-            // Center map ONLY when explicitly requested (e.g. user selecting a route dropdown)
             if (shouldCenter && routeBounds.isValid()) {
                 map.fitBounds(routeBounds, { padding: [50, 50] });
             }
@@ -681,7 +691,7 @@
 
                         if (targetSelect) {
                             targetSelect.value = matchedRouteId;
-                            redrawMapLayers(true); // Center when finding and selecting via nearest route tool
+                            redrawMapLayers(true);
                         } else {
                             addRouteRow(matchedRouteId, true);
                         }
