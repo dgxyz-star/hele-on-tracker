@@ -98,7 +98,13 @@
 <body>
 
     <div class="floating-toggle-container">
-        <!-- Calendar and Notepad will dynamically move here when collapsed -->
+        <!-- Calendar and Notepad placed first on the left side of the floating container -->
+        <div class="calendar-btn-wrapper" id="calendar-wrapper" title="Select Date">
+            <select id="date-select" onchange="redrawMapLayers(false)"></select>
+            <span class="calendar-icon">📅</span>
+        </div>
+        <button class="action-top-btn" id="notepad-btn" onclick="toggleHelpOverlay()" title="Guide & Help">📝</button>
+        
         <button class="floating-btn" onclick="locateUser()" title="Locate GPS">🎯</button>
         <button class="floating-btn" onclick="findNearestRoute()" title="Find Nearest Route">🚏</button>
         <button class="floating-btn" onclick="addRouteRow()" title="➕">➕</button>
@@ -109,11 +115,11 @@
         <div class="header-top">
             <div class="header-top-controls">
                 <div class="header-left-group">
-                    <div class="calendar-btn-wrapper" id="calendar-wrapper" title="Select Date">
-                        <select id="date-select" onchange="redrawMapLayers(false)"></select>
+                    <div class="calendar-btn-wrapper" id="calendar-wrapper-header" title="Select Date">
+                        <select id="date-select-header" onchange="syncDateSelects(this); redrawMapLayers(false)"></select>
                         <span class="calendar-icon">📅</span>
                     </div>
-                    <button class="action-top-btn" id="notepad-btn" onclick="toggleHelpOverlay()" title="Guide & Help">📝</button>
+                    <button class="action-top-btn" id="notepad-btn-header" onclick="toggleHelpOverlay()" title="Guide & Help">📝</button>
                 </div>
                 <div class="header-right-group">
                     <button class="gps-btn" onclick="locateUser()" title="Locate GPS">🎯</button>
@@ -179,23 +185,15 @@
             const header = document.getElementById('main-header');
             const isCollapsed = header.classList.toggle('collapsed');
             document.body.classList.toggle('header-is-collapsed', isCollapsed);
-
-            const leftGroup = document.querySelector('.header-left-group');
-            const floatingContainer = document.querySelector('.floating-toggle-container');
-            const calendarWrapper = document.getElementById('calendar-wrapper');
-            const notepadBtn = document.getElementById('notepad-btn');
-
-            if (isCollapsed) {
-                // Move calendar and notepad into floating container (at the beginning)
-                floatingContainer.insertBefore(calendarWrapper, floatingContainer.firstChild);
-                floatingContainer.insertBefore(notepadBtn, calendarWrapper.nextSibling);
-            } else {
-                // Move calendar and notepad back to header left group
-                leftGroup.appendChild(calendarWrapper);
-                leftGroup.appendChild(notepadBtn);
-            }
-
             setTimeout(() => { map.invalidateSize(); }, 300);
+        }
+
+        function syncDateSelects(changedSelect) {
+            const val = changedSelect.value;
+            const selects = document.querySelectorAll('#date-select, #date-select-header');
+            selects.forEach(s => {
+                if (s.value !== val) s.value = val;
+            });
         }
 
         function toggleHelpOverlay() {
@@ -392,8 +390,8 @@
             });
             availableRouteOptionsHtml = optionsHtml;
 
-            const dateSelect = document.getElementById('date-select');
-            dateSelect.innerHTML = '';
+            const dateSelects = document.querySelectorAll('#date-select, #date-select-header');
+            dateSelects.forEach(ds => ds.innerHTML = '');
 
             const today = new Date();
             for (let i = 0; i < 7; i++) {
@@ -409,10 +407,12 @@
                 let monthDayStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                 let friendlyLabel = `${dayNameFull} (${monthDayStr})`;
 
-                let opt = document.createElement('option');
-                opt.value = dateStr;
-                opt.textContent = friendlyLabel;
-                dateSelect.appendChild(opt);
+                dateSelects.forEach(ds => {
+                    let opt = document.createElement('option');
+                    opt.value = dateStr;
+                    opt.textContent = friendlyLabel;
+                    ds.appendChild(opt);
+                });
             }
 
             addRouteRow('', false);
@@ -469,7 +469,7 @@
         }
 
         function getTargetEvaluationDate() {
-            const val = document.getElementById('date-select').value;
+            const val = document.getElementById('date-select').value || document.getElementById('date-select-header').value;
             if (!val || val.length !== 8) return new Date();
             let year = parseInt(val.substring(0, 4));
             let month = parseInt(val.substring(4, 6)) - 1;
