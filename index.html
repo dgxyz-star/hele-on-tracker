@@ -47,21 +47,16 @@
         .btn-action { background: #334155; color: #06b6d4; border: 1px solid #475569; padding: 4px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; cursor: pointer; margin-top: 4px; margin-right: 4px; }
         .btn-action:active { background: #475569; }
 
-        /* Search Overlay Modal */
-        #search-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.85); z-index: 2000; display: flex; flex-direction: column; align-items: center; padding-top: 60px; transition: opacity 0.2s ease; }
-        #search-overlay.hidden { display: none; }
-        .search-container { width: 90%; max-width: 400px; background: #1e293b; border: 1px solid #475569; border-radius: 8px; padding: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.7); display: flex; flex-direction: column; gap: 8px; }
-        .search-input-wrapper { display: flex; gap: 6px; }
-        .search-input-wrapper input { flex: 1; background: #0f172a; border: 1px solid #475569; border-radius: 4px; padding: 8px; color: #fff; font-size: 0.85rem; outline: none; }
-        .search-results-list { list-style: none; max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
-        .search-results-list li { background: #0f172a; padding: 8px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; border-left: 3px solid #06b6d4; display: flex; flex-direction: column; gap: 2px; }
-        .search-results-list li:hover { background: #334155; }
-        .search-result-name { font-weight: bold; color: #06b6d4; }
-
         .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #1e293b !important; color: #f8fafc !important; border: 1px solid #475569; border-radius: 6px; }
         .leaflet-popup-content { font-size: 0.75rem; line-height: 1.3; margin: 8px; max-width: 260px; }
-        .popup-stop-name { font-weight: bold; color: #06b6d4; font-size: 0.8rem; margin-bottom: 2px; display: block; }
-        .popup-stop-meta { font-size: 0.65rem; color: #94a3b8; margin-bottom: 6px; }
+        
+        .popup-header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; margin-bottom: 4px; }
+        .popup-title-container { flex: 1; min-width: 0; }
+        .popup-stop-name { font-weight: bold; color: #06b6d4; font-size: 0.8rem; display: block; line-height: 1.1; }
+        .popup-stop-meta { font-size: 0.65rem; color: #94a3b8; margin-top: 1px; }
+        .popup-header-icons { display: flex; gap: 3px; flex-shrink: 0; align-items: center; }
+        .popup-icon-btn { background: #334155; color: #06b6d4; border: 1px solid #475569; border-radius: 3px; width: 22px; height: 22px; font-size: 0.7rem; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+        .popup-icon-btn:active { background: #475569; }
 
         /* Universal scroll container for all stop schedules */
         .popup-scroll-container { max-height: 240px; overflow-y: auto; margin-top: 4px; padding-right: 4px; }
@@ -78,7 +73,6 @@
 
     <div class="floating-toggle-container">
         <button class="floating-btn" onclick="locateUser()" title="Locate GPS">🎯</button>
-        <button class="floating-btn" onclick="openSearchModal()" title="Search Address">🔍</button>
         <button class="floating-btn" onclick="findNearestRoute()" title="Find Nearest Route">🚏</button>
         <button class="floating-btn" onclick="addRouteRow()" title="Add Route">➕</button>
         <button class="floating-btn" onclick="toggleHeader()">▼</button>
@@ -91,7 +85,6 @@
             </div>
             <div class="header-top-controls">
                 <button class="gps-btn" onclick="locateUser()" title="Locate GPS">🎯</button>
-                <button class="action-top-btn" onclick="openSearchModal()" title="Search Address">🔍</button>
                 <button class="action-top-btn" onclick="findNearestRoute()" title="Find Nearest Route">🚏</button>
                 <button class="action-top-btn" onclick="addRouteRow()" title="Add Route">➕</button>
                 <button class="toggle-btn" onclick="toggleHeader()">▲</button>
@@ -111,23 +104,6 @@
             <button class="btn-action" onclick="clearPlanner()">Clear Route</button>
         </div>
         <ul id="planner-results" class="planner-routes-list"></ul>
-    </div>
-
-    <!-- Search Modal Overlay -->
-    <div id="search-overlay" class="hidden">
-        <div class="search-container">
-            <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; font-weight: bold; color: #06b6d4;">
-                <span>Search Address</span>
-                <button class="btn-action" onclick="closeSearchModal()">Close</button>
-            </div>
-            <div class="search-input-wrapper">
-                <input type="text" id="search-input-box" placeholder="Type a street address or location..." onkeypress="if(event.key === 'Enter') triggerAddressSearch()" />
-                <button class="btn-action" onclick="triggerAddressSearch()" style="margin:0;">Search</button>
-            </div>
-            <ul id="search-results-list" class="search-results-list">
-                <li style="color: #94a3b8; text-align: center; cursor: default;">Type an address and press search or Enter...</li>
-            </ul>
-        </div>
     </div>
 
     <!-- Leaflet JS -->
@@ -601,8 +577,16 @@
                     });
 
                     let popupContent = `
-                        <span class="popup-stop-name">${stopInfo.name}</span>
-                        <div class="popup-stop-meta">Stop Code: ${stopInfo.code}</div>
+                        <div class="popup-header-row">
+                            <div class="popup-title-container">
+                                <span class="popup-stop-name">${stopInfo.name}</span>
+                                <div class="popup-stop-meta">Stop Code: ${stopInfo.code}</div>
+                            </div>
+                            <div class="popup-header-icons">
+                                <button class="popup-icon-btn" onclick="openStopTimetable('${stopId}')" title="View Stop Timetable">🔍</button>
+                                <button class="popup-icon-btn" onclick="openNextClosestRouteForStop('${stopId}')" title="Add Next Nearest Route">🔍+</button>
+                            </div>
+                        </div>
                         <div>
                             <button class="btn-action" onclick="setPlannerStop('${stopId}', 'start')">📍 Set Start</button>
                             <button class="btn-action" onclick="setPlannerStop('${stopId}', 'end')">🏁 Set End</button>
@@ -632,6 +616,92 @@
 
             if (shouldCenter && routeBounds.isValid()) {
                 map.fitBounds(routeBounds, { padding: [50, 50] });
+            }
+        }
+
+        function openStopTimetable(stopId) {
+            // Focus or scroll down inside the popup's schedule list container
+            const container = document.querySelector('.leaflet-popup-content .popup-scroll-container');
+            if (container) {
+                container.scrollTop = 0;
+                container.style.outline = '2px solid #06b6d4';
+                setTimeout(() => { container.style.outline = 'none'; }, 600);
+            }
+        }
+
+        function openNextClosestRouteForStop(stopId) {
+            let stopInfo = gtfsData.stops[stopId];
+            if (!stopInfo) return;
+
+            const targetDate = getTargetEvaluationDate();
+
+            // Find all routes that service this stop and are active on targetDate
+            let routeDistances = [];
+            let routeIdsSeen = new Set();
+
+            Object.keys(gtfsData.trips).forEach(tripId => {
+                let trip = gtfsData.trips[tripId];
+                if (isServiceActive(trip.service_id, targetDate)) {
+                    let stops = gtfsData.stopTimes[tripId] || [];
+                    if (stops.some(st => st.stop_id === stopId)) {
+                        let rId = trip.route_id;
+                        if (!routeIdsSeen.has(rId)) {
+                            routeIdsSeen.add(rId);
+
+                            // Calculate minimum distance from this stop to any point on this route's shape/trips
+                            let minRouteDist = Infinity;
+                            let shapeId = trip.shape_id;
+                            if (shapeId && gtfsData.shapes[shapeId]) {
+                                gtfsData.shapes[shapeId].forEach(pt => {
+                                    let dist = Math.pow(pt.lat - stopInfo.lat, 2) + Math.pow(pt.lng - stopInfo.lng, 2);
+                                    if (dist < minRouteDist) minRouteDist = dist;
+                                });
+                            } else {
+                                minRouteDist = 0; // fallback if no shape
+                            }
+                            routeDistances.push({ routeId: rId, dist: minRouteDist });
+                        }
+                    }
+                }
+            });
+
+            // Sort routes by proximity to this stop
+            routeDistances.sort((a, b) => a.dist - b.dist);
+
+            // Get currently active route IDs from dropdowns
+            const selects = document.querySelectorAll('.route-select-dropdown');
+            let activeRouteIds = [];
+            selects.forEach(sel => {
+                if (sel.value) activeRouteIds.push(sel.value);
+            });
+
+            // Find the next closest route that is NOT already active in the dropdown list
+            let nextRouteToOpen = null;
+            for (let item of routeDistances) {
+                if (!activeRouteIds.includes(item.routeId)) {
+                    nextRouteToOpen = item.routeId;
+                    break;
+                }
+            }
+
+            if (nextRouteToOpen) {
+                let targetSelect = null;
+                for (let sel of selects) {
+                    if (!sel.value) {
+                        targetSelect = sel;
+                        break;
+                    }
+                }
+
+                if (targetSelect) {
+                    targetSelect.value = nextRouteToOpen;
+                    updateRowColorIndicator(targetSelect);
+                    redrawMapLayers(false);
+                } else {
+                    addRouteRow(nextRouteToOpen, false);
+                }
+            } else {
+                alert("All routes serving this stop are already open!");
             }
         }
 
@@ -788,116 +858,6 @@
                 }, { enableHighAccuracy: true, timeout: 5000 });
             } else {
                 alert("Geolocation is not supported by your browser.");
-            }
-        }
-
-        // --- Address Search Modal Functions ---
-        function openSearchModal() {
-            const modal = document.getElementById('search-overlay');
-            modal.classList.remove('hidden');
-            const input = document.getElementById('search-input-box');
-            input.value = '';
-            input.focus();
-            document.getElementById('search-results-list').innerHTML = `<li style="color: #94a3b8; text-align: center; cursor: default;">Type an address (e.g., Pahoa, Hilo)...</li>`;
-        }
-
-        function closeSearchModal() {
-            document.getElementById('search-overlay').classList.add('hidden');
-        }
-
-        async function triggerAddressSearch() {
-            const query = document.getElementById('search-input-box').value.trim();
-            const resultsList = document.getElementById('search-results-list');
-            if (!query) return;
-
-            resultsList.innerHTML = `<li style="color: #94a3b8; text-align: center; cursor: default;">Searching address...</li>`;
-
-            try {
-                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
-                const data = await response.json();
-
-                resultsList.innerHTML = '';
-
-                if (!data || data.length === 0) {
-                    resultsList.innerHTML = `<li style="color: #f43f5e; text-align: center; cursor: default;">No addresses found. Try a broader search term.</li>`;
-                    return;
-                }
-
-                data.slice(0, 5).forEach(place => {
-                    let li = document.createElement('li');
-                    li.innerHTML = `
-                        <span class="search-result-name">📍 ${place.display_name}</span>
-                    `;
-                    li.onclick = () => selectAddressCoordinates(parseFloat(place.lat), parseFloat(place.lon), place.display_name);
-                    resultsList.appendChild(li);
-                });
-            } catch (err) {
-                console.error("Geocoding error:", err);
-                resultsList.innerHTML = `<li style="color: #f43f5e; text-align: center; cursor: default;">Error connecting to address search service.</li>`;
-            }
-        }
-
-        function selectAddressCoordinates(lat, lon, addressName) {
-            closeSearchModal();
-            let targetLatLng = [lat, lon];
-
-            // Treat this searched location exactly like the GPS button location
-            lastUserLatLng = targetLatLng;
-
-            if (!userMarker) {
-                let userIcon = L.divIcon({ className: 'user-loc-dot', iconSize: [10, 10], iconAnchor: [5, 5] });
-                userMarker = L.marker(targetLatLng, { icon: userIcon }).addTo(map).bindPopup(`<b>Searched Location:</b><br>${addressName}`);
-            } else {
-                userMarker.setLatLng(targetLatLng);
-                userMarker.setPopupContent(`<b>Searched Location:</b><br>${addressName}`);
-            }
-
-            map.setView(targetLatLng, 15);
-            userMarker.openPopup();
-
-            // Run the exact same sequence as findNearestRoute()[cite: 1]
-            let closestStopId = null;
-            let minDist = Infinity;
-            Object.keys(gtfsData.stops).forEach(stopId => {
-                let s = gtfsData.stops[stopId];
-                if (!isNaN(s.lat) && !isNaN(s.lng)) {
-                    let dist = Math.pow(s.lat - targetLatLng[0], 2) + Math.pow(s.lng - targetLatLng[1], 2);
-                    if (dist < minDist) {
-                        minDist = dist;
-                        closestStopId = stopId;
-                    }
-                }
-            });
-
-            if (closestStopId) {
-                let matchedRouteId = null;
-                for (let tripId in gtfsData.trips) {
-                    let trip = gtfsData.trips[tripId];
-                    let stops = gtfsData.stopTimes[tripId] || [];
-                    if (stops.some(st => st.stop_id === closestStopId)) {
-                        matchedRouteId = trip.route_id;
-                        break;
-                    }
-                }
-
-                if (matchedRouteId) {
-                    const selects = document.querySelectorAll('.route-select-dropdown');
-                    let targetSelect = null;
-                    for (let sel of selects) {
-                        if (!sel.value) {
-                            targetSelect = sel;
-                            break;
-                        }
-                    }
-
-                    if (targetSelect) {
-                        targetSelect.value = matchedRouteId;
-                        updateRowColorIndicator(targetSelect);
-                        redrawMapLayers(true);
-                    } else {
-                        addRouteRow(matchedRouteId, true);
-                    }
-                }
             }
         }
 
