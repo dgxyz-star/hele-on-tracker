@@ -80,9 +80,12 @@
         #qr-overlay.hidden { display: none; }
 
         /* Trip Planner Panel */
-        #planner-panel { position: absolute; bottom: 0; left: 0; width: 100%; background: #1e293b; border-top: 2px solid #06b6d4; z-index: 1000; padding: 10px; max-height: 45vh; display: flex; flex-direction: column; box-shadow: 0 -4px 12px rgba(0,0,0,0.5); transition: transform 0.3s ease; }
+        #planner-panel { position: absolute; bottom: 0; left: 0; width: 100%; background: #1e293b; border-top: 2px solid #06b6d4; z-index: 1000; padding: 10px; max-height: 45vh; display: flex; flex-direction: column; box-shadow: 0 -4px 12px rgba(0,0,0,0.5); transition: transform 0.3s ease, max-height 0.3s ease; }
         #planner-panel.hidden { transform: translateY(100%); display: none; }
+        #planner-panel.collapsed { max-height: 44px; }
+        #planner-panel.collapsed #planner-results { display: none; }
         .planner-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 0.75rem; font-weight: bold; color: #06b6d4; }
+        #planner-panel.collapsed .planner-header { margin-bottom: 0; }
         .planner-routes-list { list-style: none; overflow-y: auto; max-height: 140px; padding-right: 2px; }
         .planner-routes-list li { background: #0f172a; padding: 6px; margin-bottom: 4px; border-radius: 4px; font-size: 0.7rem; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #4ade80; }
         .planner-times { font-family: monospace; color: #4ade80; font-weight: bold; }
@@ -208,7 +211,10 @@
     <div id="planner-panel" class="hidden">
         <div class="planner-header">
             <span id="planner-title">Trip Planner</span>
-            <button class="btn-action" onclick="clearPlanner()">Clear Route</button>
+            <div style="display: flex; gap: 4px; align-items: center;">
+                <button class="btn-action" onclick="clearPlanner()">Clear Route</button>
+                <button class="toggle-btn" id="planner-toggle-btn" onclick="togglePlannerPanel()" title="Toggle Planner">▼</button>
+            </div>
         </div>
         <ul id="planner-results" class="planner-routes-list"></ul>
     </div>
@@ -220,6 +226,15 @@
             const header = document.getElementById('main-header');
             const isCollapsed = header.classList.toggle('collapsed');
             document.body.classList.toggle('header-is-collapsed', isCollapsed);
+
+            setTimeout(() => { map.invalidateSize(); }, 300);
+        }
+
+        function togglePlannerPanel() {
+            const panel = document.getElementById('planner-panel');
+            const btn = document.getElementById('planner-toggle-btn');
+            const isCollapsed = panel.classList.toggle('collapsed');
+            btn.textContent = isCollapsed ? '▲' : '▼';
 
             setTimeout(() => { map.invalidateSize(); }, 300);
         }
@@ -1107,9 +1122,13 @@
             const panel = document.getElementById('planner-panel');
             const title = document.getElementById('planner-title');
             const resultsList = document.getElementById('planner-results');
+            const btn = document.getElementById('planner-toggle-btn');
+
+            panel.classList.remove('hidden');
+            panel.classList.remove('collapsed');
+            if (btn) btn.textContent = '▼';
 
             if (!tripPlanner.startStopId || !tripPlanner.endStopId) {
-                panel.classList.remove('hidden');
                 let startName = tripPlanner.startStopId ? gtfsData.stops[tripPlanner.startStopId].name : 'Not set';
                 let endName = tripPlanner.endStopId ? gtfsData.stops[tripPlanner.endStopId].name : 'Not set';
                 title.textContent = `Planner: ${tripPlanner.startStopId ? '📍 Start Set' : 'Select Start'} → ${tripPlanner.endStopId ? '🏁 End Set' : 'Select End'}`;
@@ -1161,14 +1180,16 @@
             } else {
                 resultsList.innerHTML = `<li style="justify-content:center; color:#f43f5e;">No direct trips found between these stops for this schedule.</li>`;
             }
-
-            panel.classList.remove('hidden');
         }
 
         function clearPlanner() {
             tripPlanner.startStopId = null;
             tripPlanner.endStopId = null;
-            document.getElementById('planner-panel').classList.add('hidden');
+            const panel = document.getElementById('planner-panel');
+            panel.classList.add('hidden');
+            panel.classList.remove('collapsed');
+            const btn = document.getElementById('planner-toggle-btn');
+            if (btn) btn.textContent = '▼';
             redrawMapLayers(false);
         }
 
