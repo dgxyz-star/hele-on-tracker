@@ -139,7 +139,7 @@
                 </div>
                 <div class="header-right-group">
                     <button class="gps-btn" onclick="locateUser()" title="Locate GPS">🎯</button>
-                    <button class="action-top-btn" onclick="toggleInfinityMode()" title="Explore All Routes">∞[cite: 1]</button>
+                    <button class="action-top-btn" onclick="toggleInfinityMode()" title="Explore All Routes">∞</button>
                     <button class="action-top-btn" onclick="findNearestRoute()" title="Find Nearest Route">🚏</button>
                     <button class="action-top-btn" onclick="addRouteRow()" title="Add Route">➕</button>
                     <button class="toggle-btn" onclick="toggleHeader()" title="Toggle Header">▲</button>
@@ -177,29 +177,29 @@
         <div class="help-body">
             <div class="help-section">
                 <h3>Top Control Bar & Floating Menu</h3>
-                <p><strong>🔲 QR Code Button:</strong> Opens a share modal displaying a QR code and URL link to easily share this live app with others[cite: 1].</p>
-                <p><strong>📝 Notepad Icon:</strong> Opens this full-window guide and functionality overview[cite: 1].</p>
-                <p><strong>🎯 GPS Button:</strong> Centers and focuses the map on your current GPS location[cite: 1].</p>
-                <p><strong>∞ Infinity Route Exploration Button:</strong> Enters an exploration mode where all available transit routes are displayed as background lines across the map. Tapping any route on the map saves it to your dropdown rows sequentially. Tapping anywhere on empty map space exits this mode and keeps only your selected routes[cite: 1].</p>
-                <p><strong>🚏 Nearest Route Button:</strong> Finds the closest route and stop relative to your current location[cite: 1].</p>
-                <p><strong>➕ Add Route Button:</strong> Adds an extra route selection dropdown so you can view and compare multiple bus routes on the map simultaneously[cite: 1].</p>
-                <p><strong>📅 Calendar Icon:</strong> Tap to pick a specific schedule date[cite: 1].</p>
-                <p><strong>▲ Toggle Header Button:</strong> Expands or collapses the top header panel to maximize map viewing space[cite: 1].</p>
+                <p><strong>🔲 QR Code Button:</strong> Opens a share modal displaying a QR code and URL link to easily share this live app with others[cite: 2].</p>
+                <p><strong>📝 Notepad Icon:</strong> Opens this full-window guide and functionality overview[cite: 2].</p>
+                <p><strong>🎯 GPS Button:</strong> Centers and focuses the map on your current GPS location[cite: 2].</p>
+                <p><strong>∞ Infinity Route Exploration Button:</strong> Enters an exploration mode where all available transit routes are displayed as background lines across the map. Tapping any route on the map saves it to your dropdown rows sequentially. Tapping anywhere on empty map space exits this mode and keeps only your selected routes[cite: 2].</p>
+                <p><strong>🚏 Nearest Route Button:</strong> Finds the closest route and stop relative to your current location[cite: 2].</p>
+                <p><strong>➕ Add Route Button:</strong> Adds an extra route selection dropdown so you can view and compare multiple bus routes on the map simultaneously[cite: 2].</p>
+                <p><strong>📅 Calendar Icon:</strong> Tap to pick a specific schedule date[cite: 2].</p>
+                <p><strong>▲ Toggle Header Button:</strong> Expands or collapses the top header panel to maximize map viewing space[cite: 2].</p>
             </div>
             <div class="help-section">
                 <h3>Stop Popups & Schedule List</h3>
-                <p>Tap any bus stop marker on the map to open its information popup[cite: 1]:</p>
+                <p>Tap any bus stop marker on the map to open its information popup[cite: 2]:</p>
                 <ul>
-                    <li><strong>📍 Start Button:</strong> Sets the selected stop as the departure point for the Trip Planner[cite: 1].</li>
-                    <li><strong>🏁 End Button:</strong> Sets the selected stop as the destination point for the Trip Planner[cite: 1].</li>
-                    <li><strong>🔍 Magnifier Icon:</strong> Automatically finds and opens the next closest route serving this particular stop[cite: 1].</li>
-                    <li><strong>Scrollable Schedule Times:</strong> View scheduled arrival and departure times for each route[cite: 1].</li>
+                    <li><strong>📍 Start Button:</strong> Sets the selected stop as the departure point for the Trip Planner[cite: 2].</li>
+                    <li><strong>🏁 End Button:</strong> Sets the selected stop as the destination point for the Trip Planner[cite: 2].</li>
+                    <li><strong>🔍 Magnifier Icon:</strong> Automatically finds and opens the next closest route serving this particular stop[cite: 2].</li>
+                    <li><strong>Scrollable Schedule Times:</strong> View scheduled arrival and departure times for each route[cite: 2].</li>
                 </ul>
             </div>
             <div class="help-section">
                 <h3>General Map Interaction</h3>
-                <p><strong>Long Press / Right-Click:</strong> Pressing and holding (or right-clicking) anywhere on the map will instantly search for and load the nearest bus route to that location[cite: 1].</p>
-                <p><strong>Vertical Drag-to-Zoom:</strong> Double-tap the screen and hold/drag vertically up or down to scale the map smoothly[cite: 1].</p>
+                <p><strong>Long Press / Right-Click:</strong> Pressing and holding (or right-clicking) anywhere on the map will instantly search for and load the nearest bus route to that location[cite: 2].</p>
+                <p><strong>Vertical Drag-to-Zoom:</strong> Double-tap the screen and hold/drag vertically up or down to scale the map smoothly[cite: 2].</p>
             </div>
         </div>
     </div>
@@ -878,7 +878,7 @@
             }
         }
 
-        // --- Infinity Mode Handlers ---
+        // --- Infinity Mode Handlers with Dual-Layer 5x Touch Target Hit-Boxes ---
         function toggleInfinityMode() {
             if (!isInfinityMode) {
                 enterInfinityMode();
@@ -890,7 +890,6 @@
         function enterInfinityMode() {
             isInfinityMode = true;
 
-            // Clear all dropdown selections ("with no dropdowns active yet")
             const selects = document.querySelectorAll('.route-select-dropdown');
             selects.forEach(sel => {
                 sel.value = '';
@@ -916,27 +915,42 @@
                 }
             });
 
+            const normalWeight = 4;
+            const hitBoxMultiplier = 5; // ~5x wider tap target buffer on each side
+
             allRouteShapes.forEach((routeId, shapeId) => {
                 let points = gtfsData.shapes[shapeId];
                 if (points && points.length > 0) {
                     let lineCoords = points.map(p => [p.lat, p.lng]);
-                    let polyline = L.polyline(lineCoords, {
+
+                    // 1. Invisible thick buffer line underneath for easy tapping
+                    let hitBoxLine = L.polyline(lineCoords, {
+                        color: 'transparent',
+                        weight: normalWeight * hitBoxMultiplier,
+                        interactive: true,
+                        smoothFactor: 1
+                    });
+
+                    // 2. Visible thin line on top
+                    let visibleLine = L.polyline(lineCoords, {
                         color: getRouteColor(routeId),
-                        weight: 4,
-                        opacity: 0.4
+                        weight: normalWeight,
+                        opacity: 0.4,
+                        interactive: false
                     });
 
-                    polyline.on('click', (e) => {
+                    hitBoxLine.on('click', (e) => {
                         L.DomEvent.stopPropagation(e);
-                        saveInfinityRoute(routeId, polyline);
+                        saveInfinityRoute(routeId, visibleLine);
                     });
 
-                    infinityLayerGroup.addLayer(polyline);
+                    let routeGroup = L.layerGroup([hitBoxLine, visibleLine]);
+                    infinityLayerGroup.addLayer(routeGroup);
                 }
             });
         }
 
-        function saveInfinityRoute(routeId, polyline) {
+        function saveInfinityRoute(routeId, visibleLine) {
             const selects = document.querySelectorAll('.route-select-dropdown');
             let alreadySelected = false;
             selects.forEach(sel => {
@@ -960,7 +974,7 @@
                 addRouteRow(routeId, false);
             }
 
-            polyline.setStyle({
+            visibleLine.setStyle({
                 weight: 6,
                 opacity: 0.9
             });
