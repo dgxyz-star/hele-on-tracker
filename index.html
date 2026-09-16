@@ -766,59 +766,60 @@
             }
         }
 
-        function findNearestRoute() {
-            let executeFind = (latLng) => {
-                lastUserLatLng = latLng;
-                let closestStopId = null;
-                let minDist = Infinity;
-                Object.keys(gtfsData.stops).forEach(stopId => {
-                    let s = gtfsData.stops[stopId];
-                    if (!isNaN(s.lat) && !isNaN(s.lng)) {
-                        let dist = Math.pow(s.lat - latLng[0], 2) + Math.pow(s.lng - latLng[1], 2);
-                        if (dist < minDist) {
-                            minDist = dist;
-                            closestStopId = stopId;
-                        }
+        function findNearestRouteToLatLng(latLng) {
+            let closestStopId = null;
+            let minDist = Infinity;
+            Object.keys(gtfsData.stops).forEach(stopId => {
+                let s = gtfsData.stops[stopId];
+                if (!isNaN(s.lat) && !isNaN(s.lng)) {
+                    let dist = Math.pow(s.lat - latLng[0], 2) + Math.pow(s.lng - latLng[1], 2);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        closestStopId = stopId;
                     }
-                });
+                }
+            });
 
-                if (closestStopId) {
-                    let matchedRouteId = null;
-                    for (let tripId in gtfsData.trips) {
-                        let trip = gtfsData.trips[tripId];
-                        let stops = gtfsData.stopTimes[tripId] || [];
-                        if (stops.some(st => st.stop_id === closestStopId)) {
-                            matchedRouteId = trip.route_id;
+            if (closestStopId) {
+                let matchedRouteId = null;
+                for (let tripId in gtfsData.trips) {
+                    let trip = gtfsData.trips[tripId];
+                    let stops = gtfsData.stopTimes[tripId] || [];
+                    if (stops.some(st => st.stop_id === closestStopId)) {
+                        matchedRouteId = trip.route_id;
+                        break;
+                    }
+                }
+
+                if (matchedRouteId) {
+                    const selects = document.querySelectorAll('.route-select-dropdown');
+                    let targetSelect = null;
+                    for (let sel of selects) {
+                        if (!sel.value) {
+                            targetSelect = sel;
                             break;
                         }
                     }
 
-                    if (matchedRouteId) {
-                        const selects = document.querySelectorAll('.route-select-dropdown');
-                        let targetSelect = null;
-                        for (let sel of selects) {
-                            if (!sel.value) {
-                                targetSelect = sel;
-                                break;
-                            }
-                        }
-
-                        if (targetSelect) {
-                            targetSelect.value = matchedRouteId;
-                            updateRowColorIndicator(targetSelect);
-                            redrawMapLayers(true);
-                        } else {
-                            addRouteRow(matchedRouteId, true);
-                        }
+                    if (targetSelect) {
+                        targetSelect.value = matchedRouteId;
+                        updateRowColorIndicator(targetSelect);
+                        redrawMapLayers(true);
+                    } else {
+                        addRouteRow(matchedRouteId, true);
                     }
                 }
-            };
+            }
+        }
 
+        function findNearestRoute() {
             if (lastUserLatLng) {
-                executeFind(lastUserLatLng);
+                findNearestRouteToLatLng(lastUserLatLng);
             } else if ("geolocation" in navigator) {
                 navigator.geolocation.getCurrentPosition(position => {
-                    executeFind([position.coords.latitude, position.coords.longitude]);
+                    let userLatLng = [position.coords.latitude, position.coords.longitude];
+                    lastUserLatLng = userLatLng;
+                    findNearestRouteToLatLng(userLatLng);
                 }, err => {
                     alert("Unable to retrieve your location.");
                 }, { enableHighAccuracy: true, timeout: 5000 });
@@ -826,6 +827,11 @@
                 alert("Geolocation is not supported by your browser.");
             }
         }
+
+        // Map long-press (or right-click) listener to find nearest route to that point
+        map.on('contextmenu', (e) => {
+            findNearestRouteToLatLng([e.latlng.lat, e.latlng.lng]);
+        });
 
         if ("geolocation" in navigator) {
             navigator.geolocation.watchPosition(position => {
