@@ -50,7 +50,8 @@
         .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #1e293b !important; color: #f8fafc !important; border: 1px solid #475569; border-radius: 6px; }
         .leaflet-popup-content { font-size: 0.75rem; line-height: 1.3; margin: 8px; max-width: 260px; }
         
-        .popup-stop-name { font-weight: bold; color: #06b6d4; font-size: 0.8rem; display: block; line-height: 1.1; margin-bottom: 2px; }
+        .popup-header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 4px; margin-bottom: 2px; }
+        .popup-stop-name { font-weight: bold; color: #06b6d4; font-size: 0.8rem; display: block; line-height: 1.1; }
         .popup-stop-meta { font-size: 0.65rem; color: #94a3b8; margin-bottom: 6px; }
 
         .popup-actions-row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; align-items: center; }
@@ -60,10 +61,12 @@
 
         .popup-times-title { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 6px; margin-bottom: 2px; font-weight: bold; border-top: 1px solid #334155; padding-top: 4px; }
         .popup-times-list { list-style-type: none; padding-left: 0; }
-        .popup-times-list li { background: #0f172a; padding: 3px 6px; margin-bottom: 2px; border-radius: 3px; font-size: 0.65rem; display: flex; justify-content: space-between; gap: 4px; align-items: center; }
+        .popup-times-list li { background: #0f172a; padding: 3px 6px; margin-bottom: 2px; border-radius: 3px; font-size: 0.65rem; display: flex; justify-content: space-between; gap: 4px; align-items: center; cursor: pointer; transition: background 0.15s; }
+        .popup-times-list li:hover { background: #334155; }
         .time-group { font-family: monospace; font-weight: bold; white-space: nowrap; }
 
         .user-loc-dot { background: #06b6d4; border: 2px solid #ffffff; border-radius: 50%; box-shadow: 0 0 6px rgba(6, 182, 212, 0.8); }
+        .temp-target-dot { background: #f97316; border: 2px solid #ffffff; border-radius: 50%; box-shadow: 0 0 8px rgba(249, 115, 22, 0.9); }
     </style>
 </head>
 <body>
@@ -121,6 +124,7 @@
         }).addTo(map);
 
         let markersLayer = L.layerGroup().addTo(map);
+        let tempMarkerLayer = L.layerGroup().addTo(map);
         let userMarker = null;
         let lastUserLatLng = null;
 
@@ -446,6 +450,7 @@
 
         function redrawMapLayers(shouldCenter = false) {
             markersLayer.clearLayers();
+            tempMarkerLayer.clearLayers();
 
             const selects = document.querySelectorAll('.route-select-dropdown');
             let activeRouteIds = [];
@@ -471,28 +476,31 @@
                             }
                             let tripStops = gtfsData.stopTimes[tripId];
                             if (tripStops && tripStops.length > 0) {
-                                let finalStopEntry = tripStops[tripStops.length - 1];
-                                let finalStopName = (finalStopEntry && gtfsData.stops[finalStopEntry.stop_id]) ? gtfsData.stops[finalStopEntry.stop_id].name : (trip.headsign || 'Direct');
-                                let finalArrTime = finalStopEntry ? (finalStopEntry.arr || finalStopEntry.dep) : '';
-
                                 tripStops.forEach(st => {
                                     if (!activeStopsMap[st.stop_id]) {
                                         activeStopsMap[st.stop_id] = {};
                                     }
                                     if (!activeStopsMap[st.stop_id][routeId]) {
-                                        activeStopsMap[st.stop_id][routeId] = {};
-                                    }
-                                    if (!activeStopsMap[st.stop_id][routeId][finalStopName]) {
-                                        activeStopsMap[st.stop_id][routeId][finalStopName] = [];
+                                        activeStopsMap[st.stop_id][routeId] = [];
                                     }
 
                                     let localTime = st.dep || st.arr;
                                     let localLabel = st.dep ? 'D' : 'A';
                                     if (localTime) {
-                                        activeStopsMap[st.stop_id][routeId][finalStopName].push({
+                                        // Find all stop names/details visited along this trip sequence for cross-referencing
+                                        let stopSequenceDetails = tripStops.map(tStop => {
+                                            let sMeta = gtfsData.stops[tStop.stop_id];
+                                            return {
+                                                stopId: tStop.stop_id,
+                                                name: sMeta ? sMeta.name : 'Unknown Stop',
+                                                time: tStop.dep || tStop.arr
+                                            };
+                                        });
+
+                                        activeStopsMap[st.stop_id][routeId].push({
                                             sortTime: localTime,
                                             localText: `${localLabel} ${localTime}`,
-                                            destText: finalArrTime ? `A ${finalArrTime}` : ''
+                                            tripStops: stopSequenceDetails
                                         });
                                     }
                                 });
@@ -541,36 +549,38 @@
 
                         schedulesHtml += `<div class="popup-times-title" style="color: ${rColor};">${rDisplayName}</div>`;
 
-                        let destinationsObj = routesAtStop[rId];
-                        Object.keys(destinationsObj).forEach(destName => {
-                            let rawTimesArr = destinationsObj[destName];
+                        let tripEntriesArr = routesAtStop[rId];
+                        tripEntriesArr.sort((a, b) => a.sortTime.localeCompare(b.sortTime));
 
-                            let uniqueMap = new Map();
-                            rawTimesArr.forEach(item => {
-                                let uniqueKey = `${item.sortTime}|${item.localText}|${item.destText}`;
-                                if (!uniqueMap.has(uniqueKey)) {
-                                    uniqueMap.set(uniqueKey, item);
-                                }
-                            });
-
-                            let timesArr = Array.from(uniqueMap.values()).sort((a, b) => a.sortTime.localeCompare(b.sortTime));
+                        tripEntriesArr.forEach(item => {
+                            // Build a list of clickable stops for this specific trip run
+                            let stopsSnippet = item.tripStops.map(ts => `
+                                <li onclick="jumpToStopLocation('${ts.stopId}')">
+                                    <span class="time-group" style="color: ${rColor};">${ts.time || ''}</span>
+                                    <span style="flex:1; margin-left:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${ts.name}">${ts.name}</span>
+                                </li>
+                            `).join('');
 
                             schedulesHtml += `
-                                <div style="font-size:0.6rem; color:#94a3b8; margin-top:2px;">&rarr; ${destName}</div>
-                                <ul class="popup-times-list">
-                                    ${timesArr.map(item => `<li><span class="time-group" style="color: ${rColor};">${item.localText} &rarr; ${item.destText}</span></li>`).join('')}
+                                <div style="font-size:0.6rem; color:#cbd5e1; margin-top:4px; font-weight:bold;">Trip @ ${item.sortTime} (Tap stop name to locate):</div>
+                                <ul class="popup-times-list" style="margin-top:2px;">
+                                    ${stopsSnippet}
                                 </ul>
                             `;
                         });
                     });
 
                     let popupContent = `
-                        <span class="popup-stop-name">${stopInfo.name}</span>
-                        <div class="popup-stop-meta">Stop Code: ${stopInfo.code}</div>
+                        <div class="popup-header-row">
+                            <div>
+                                <span class="popup-stop-name">${stopInfo.name}</span>
+                                <div class="popup-stop-meta">Stop Code: ${stopInfo.code}</div>
+                            </div>
+                            <button class="btn-action" style="margin:0; padding:3px 6px;" onclick="openNextClosestRouteForStop('${stopId}')" title="Add Next Nearest Route">🔍</button>
+                        </div>
                         <div class="popup-actions-row">
                             <button class="btn-action" onclick="setPlannerStop('${stopId}', 'start')">📍 Set Start</button>
                             <button class="btn-action" onclick="setPlannerStop('${stopId}', 'end')">🏁 Set End</button>
-                            <button class="btn-action" onclick="openNextClosestRouteForStop('${stopId}')" title="Add Next Nearest Route">🔍</button>
                         </div>
                         <div class="popup-scroll-container">
                             ${schedulesHtml}
@@ -598,6 +608,28 @@
             if (shouldCenter && routeBounds.isValid()) {
                 map.fitBounds(routeBounds, { padding: [50, 50] });
             }
+        }
+
+        function jumpToStopLocation(targetStopId) {
+            let stopInfo = gtfsData.stops[targetStopId];
+            if (!stopInfo) return;
+
+            tempMarkerLayer.clearLayers();
+
+            let tempIcon = L.divIcon({ className: 'temp-target-dot', iconSize: [14, 14], iconAnchor: [7, 7] });
+            let tempMarker = L.marker([stopInfo.lat, stopInfo.lng], { icon: tempIcon }).addTo(tempMarkerLayer);
+
+            map.setView([stopInfo.lat, stopInfo.lng], 15);
+
+            // Find the main map marker for this stop and open its popup if rendered
+            markersLayer.eachLayer(layer => {
+                if (layer instanceof L.Marker) {
+                    let ll = layer.getLatLng();
+                    if (Math.abs(ll.lat - stopInfo.lat) < 0.00001 && Math.abs(ll.lng - stopInfo.lng) < 0.00001) {
+                        layer.openPopup();
+                    }
+                }
+            });
         }
 
         function openNextClosestRouteForStop(stopId) {
