@@ -37,7 +37,7 @@
         select.route-select-dropdown { width: 100%; min-width: 0; background: transparent; color: #fff; border: none; padding: 5px 6px; font-size: 0.75rem; font-weight: bold; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; outline: none; }
         select.route-select-dropdown option { background: #1e293b; color: #fff; }
 
-        #map { flex: 1; width: 100%; background: #0f172a; z-index: 1; position: relative; }
+        #map { flex: 1; width: 100%; background: #0f172a; z-index: 1; position: relative; touch-action: none; }
 
         /* Floating Left Container for Calendar and Notepad */
         .floating-left-container { position: absolute; top: 6px; left: 8px; z-index: 1001; display: flex; gap: 4px; }
@@ -175,6 +175,7 @@
             <div class="help-section">
                 <h3>General Map Interaction</h3>
                 <p><strong>Long Press / Right-Click:</strong> Pressing and holding (or right-clicking) anywhere on the map will instantly search for and load the nearest bus route to that location.</p>
+                <p><strong>Vertical Drag-to-Zoom:</strong> Double-tap the screen and hold/drag vertically up or down to scale the map smoothly (dragging up zooms in, dragging down zooms out).</p>
             </div>
         </div>
     </div>
@@ -204,12 +205,62 @@
             overlay.classList.toggle('hidden');
         }
 
-        const map = L.map('map', { zoomControl: false }).setView([19.5750, -154.9600], 11);
+        const map = L.map('map', { zoomControl: false, doubleClickZoom: false }).setView([19.5750, -154.9600], 11);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; OpenStreetMap'
         }).addTo(map);
+
+        // Custom Vertical Drag-to-Zoom Gesture Interaction
+        const mapContainer = map.getContainer();
+        let lastPointerDownTime = 0;
+        let isDragZooming = false;
+        let dragZoomStartY = 0;
+        let dragZoomStartZoom = 0;
+
+        mapContainer.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0 && e.pointerType === 'mouse') return;
+            const now = Date.now();
+            const timeDelta = now - lastPointerDownTime;
+
+            if (timeDelta < 350) {
+                isDragZooming = true;
+                dragZoomStartY = e.clientY;
+                dragZoomStartZoom = map.getZoom();
+                lastPointerDownTime = 0;
+                e.preventDefault();
+                e.stopPropagation();
+                map.dragging.disable();
+            } else {
+                lastPointerDownTime = now;
+                isDragZooming = false;
+            }
+        }, { passive: false });
+
+        mapContainer.addEventListener('pointermove', (e) => {
+            if (!isDragZooming) return;
+            e.preventDefault();
+            e.stopPropagation();
+
+            const deltaY = dragZoomStartY - e.clientY;
+            const zoomDelta = deltaY / 50;
+            const newZoom = Math.min(map.getMaxZoom(), Math.max(map.getMinZoom(), dragZoomStartZoom + zoomDelta));
+
+            map.setZoom(newZoom, { animate: false });
+        }, { passive: false });
+
+        const endDragZoom = (e) => {
+            if (isDragZooming) {
+                isDragZooming = false;
+                map.dragging.enable();
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        };
+
+        mapContainer.addEventListener('pointerup', endDragZoom);
+        mapContainer.addEventListener('pointercancel', endDragZoom);
 
         let markersLayer = L.layerGroup().addTo(map);
         let tempMarkerLayer = L.layerGroup().addTo(map);
