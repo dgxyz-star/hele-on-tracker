@@ -125,6 +125,7 @@
 
     <div class="floating-toggle-container">
         <button class="floating-btn" onclick="locateUser()" title="Locate GPS">🎯</button>
+        <button class="floating-btn" onclick="toggleInfinityMode()" title="Explore All Routes">∞</button>
         <button class="floating-btn" onclick="findNearestRoute()" title="Find Nearest Route">🚏</button>
         <button class="floating-btn" onclick="addRouteRow()" title="➕">➕</button>
         <button class="floating-btn" onclick="toggleHeader()" title="Toggle Header">▲</button>
@@ -138,6 +139,7 @@
                 </div>
                 <div class="header-right-group">
                     <button class="gps-btn" onclick="locateUser()" title="Locate GPS">🎯</button>
+                    <button class="action-top-btn" onclick="toggleInfinityMode()" title="Explore All Routes">∞[cite: 1]</button>
                     <button class="action-top-btn" onclick="findNearestRoute()" title="Find Nearest Route">🚏</button>
                     <button class="action-top-btn" onclick="addRouteRow()" title="Add Route">➕</button>
                     <button class="toggle-btn" onclick="toggleHeader()" title="Toggle Header">▲</button>
@@ -175,28 +177,29 @@
         <div class="help-body">
             <div class="help-section">
                 <h3>Top Control Bar & Floating Menu</h3>
-                <p><strong>🔲 QR Code Button:</strong> Opens a share modal displaying a QR code and URL link to easily share this live app with others.</p>
-                <p><strong>📝 Notepad Icon:</strong> Opens this full-window guide and functionality overview.</p>
-                <p><strong>🎯 GPS Button:</strong> Centers and focuses the map on your current GPS location.</p>
-                <p><strong>🚏 Nearest Route Button:</strong> Finds the closest route and stop relative to your current location.</p>
-                <p><strong>➕ Add Route Button:</strong> Adds an extra route selection dropdown so you can view and compare multiple bus routes on the map simultaneously. Pressing it multiple times will subsequently add additional next route selection rows.</p>
-                <p><strong>📅 Calendar Icon:</strong> Tap to pick a specific schedule date.</p>
-                <p><strong>▲ Toggle Header Button:</strong> Expands or collapses the top header panel to maximize map viewing space.</p>
+                <p><strong>🔲 QR Code Button:</strong> Opens a share modal displaying a QR code and URL link to easily share this live app with others[cite: 1].</p>
+                <p><strong>📝 Notepad Icon:</strong> Opens this full-window guide and functionality overview[cite: 1].</p>
+                <p><strong>🎯 GPS Button:</strong> Centers and focuses the map on your current GPS location[cite: 1].</p>
+                <p><strong>∞ Infinity Route Exploration Button:</strong> Enters an exploration mode where all available transit routes are displayed as background lines across the map. Tapping any route on the map saves it to your dropdown rows sequentially. Tapping anywhere on empty map space exits this mode and keeps only your selected routes[cite: 1].</p>
+                <p><strong>🚏 Nearest Route Button:</strong> Finds the closest route and stop relative to your current location[cite: 1].</p>
+                <p><strong>➕ Add Route Button:</strong> Adds an extra route selection dropdown so you can view and compare multiple bus routes on the map simultaneously[cite: 1].</p>
+                <p><strong>📅 Calendar Icon:</strong> Tap to pick a specific schedule date[cite: 1].</p>
+                <p><strong>▲ Toggle Header Button:</strong> Expands or collapses the top header panel to maximize map viewing space[cite: 1].</p>
             </div>
             <div class="help-section">
                 <h3>Stop Popups & Schedule List</h3>
-                <p>Tap any bus stop marker on the map to open its information popup:</p>
+                <p>Tap any bus stop marker on the map to open its information popup[cite: 1]:</p>
                 <ul>
-                    <li><strong>📍 Start Button:</strong> Sets the selected stop as the departure point for the Trip Planner (dynamically colors it opposite to the route).</li>
-                    <li><strong>🏁 End Button:</strong> Sets the selected stop as the destination point for the Trip Planner (dynamically colors it opposite to the route).</li>
-                    <li><strong>🔍 Magnifier Icon:</strong> Automatically finds and opens the next closest route serving this particular stop.</li>
-                    <li><strong>Scrollable Schedule Times:</strong> View scheduled arrival and departure times for each route. Tapping on any individual stop in the trip list will jump the map to that target stop, place an orange temporary marker there, and automatically zoom/fit both the originating stop and the destination stop into view.</li>
+                    <li><strong>📍 Start Button:</strong> Sets the selected stop as the departure point for the Trip Planner[cite: 1].</li>
+                    <li><strong>🏁 End Button:</strong> Sets the selected stop as the destination point for the Trip Planner[cite: 1].</li>
+                    <li><strong>🔍 Magnifier Icon:</strong> Automatically finds and opens the next closest route serving this particular stop[cite: 1].</li>
+                    <li><strong>Scrollable Schedule Times:</strong> View scheduled arrival and departure times for each route[cite: 1].</li>
                 </ul>
             </div>
             <div class="help-section">
                 <h3>General Map Interaction</h3>
-                <p><strong>Long Press / Right-Click:</strong> Pressing and holding (or right-clicking) anywhere on the map will instantly search for and load the nearest bus route to that location.</p>
-                <p><strong>Vertical Drag-to-Zoom:</strong> Double-tap the screen and hold/drag vertically up or down to scale the map smoothly (dragging up zooms in, dragging down zooms out).</p>
+                <p><strong>Long Press / Right-Click:</strong> Pressing and holding (or right-clicking) anywhere on the map will instantly search for and load the nearest bus route to that location[cite: 1].</p>
+                <p><strong>Vertical Drag-to-Zoom:</strong> Double-tap the screen and hold/drag vertically up or down to scale the map smoothly[cite: 1].</p>
             </div>
         </div>
     </div>
@@ -299,6 +302,9 @@
 
         let markersLayer = L.layerGroup().addTo(map);
         let tempMarkerLayer = L.layerGroup().addTo(map);
+        let infinityLayerGroup = L.layerGroup();
+        let isInfinityMode = false;
+
         let userMarker = null;
         let lastUserLatLng = null;
 
@@ -657,7 +663,6 @@
             return cleaned || name;
         }
 
-        // Cross-references current phone time against stop times and sets text color (Red / Green), handling GTFS hours >= 24
         function updateStopTextColors() {
             const now = new Date();
             const currentTotalMins = now.getHours() * 60 + now.getMinutes();
@@ -677,7 +682,7 @@
                 const textSpan = li.querySelector('.stop-name-text');
                 if (!timeSpan || !textSpan) return;
 
-                const timeStr = timeSpan.textContent.trim(); // e.g. "06:30" or "25:15"
+                const timeStr = timeSpan.textContent.trim();
                 if (!timeStr.includes(':')) return;
 
                 const parts = timeStr.split(':');
@@ -687,15 +692,17 @@
                     textSpan.style.color = '#4ade80';
                 } else {
                     if (stopTotalMins < currentTotalMins) {
-                        textSpan.style.color = '#ff4d4d'; // Red for past times
+                        textSpan.style.color = '#ff4d4d';
                     } else {
-                        textSpan.style.color = '#4ade80'; // Green for future times
+                        textSpan.style.color = '#4ade80';
                     }
                 }
             });
         }
 
         function redrawMapLayers(shouldCenter = false) {
+            if (isInfinityMode) return;
+
             markersLayer.clearLayers();
             tempMarkerLayer.clearLayers();
 
@@ -870,6 +877,110 @@
                 map.fitBounds(routeBounds, { padding: [50, 50] });
             }
         }
+
+        // --- Infinity Mode Handlers ---
+        function toggleInfinityMode() {
+            if (!isInfinityMode) {
+                enterInfinityMode();
+            } else {
+                exitInfinityMode();
+            }
+        }
+
+        function enterInfinityMode() {
+            isInfinityMode = true;
+
+            // Clear all dropdown selections ("with no dropdowns active yet")
+            const selects = document.querySelectorAll('.route-select-dropdown');
+            selects.forEach(sel => {
+                sel.value = '';
+                updateRowColorIndicator(sel);
+            });
+            const container = document.getElementById('route-rows-container');
+            while (container.children.length > 1) {
+                container.lastElementChild.remove();
+            }
+
+            markersLayer.clearLayers();
+            tempMarkerLayer.clearLayers();
+            if (infinityLayerGroup) {
+                map.removeLayer(infinityLayerGroup);
+            }
+            infinityLayerGroup = L.layerGroup().addTo(map);
+
+            let allRouteShapes = new Map();
+            Object.keys(gtfsData.trips).forEach(tripId => {
+                let trip = gtfsData.trips[tripId];
+                if (trip.shape_id && trip.route_id) {
+                    allRouteShapes.set(trip.shape_id, trip.route_id);
+                }
+            });
+
+            allRouteShapes.forEach((routeId, shapeId) => {
+                let points = gtfsData.shapes[shapeId];
+                if (points && points.length > 0) {
+                    let lineCoords = points.map(p => [p.lat, p.lng]);
+                    let polyline = L.polyline(lineCoords, {
+                        color: getRouteColor(routeId),
+                        weight: 4,
+                        opacity: 0.4
+                    });
+
+                    polyline.on('click', (e) => {
+                        L.DomEvent.stopPropagation(e);
+                        saveInfinityRoute(routeId, polyline);
+                    });
+
+                    infinityLayerGroup.addLayer(polyline);
+                }
+            });
+        }
+
+        function saveInfinityRoute(routeId, polyline) {
+            const selects = document.querySelectorAll('.route-select-dropdown');
+            let alreadySelected = false;
+            selects.forEach(sel => {
+                if (sel.value === routeId) alreadySelected = true;
+            });
+
+            if (alreadySelected) return;
+
+            let targetSelect = null;
+            for (let sel of selects) {
+                if (!sel.value) {
+                    targetSelect = sel;
+                    break;
+                }
+            }
+
+            if (targetSelect) {
+                targetSelect.value = routeId;
+                updateRowColorIndicator(targetSelect);
+            } else {
+                addRouteRow(routeId, false);
+            }
+
+            polyline.setStyle({
+                weight: 6,
+                opacity: 0.9
+            });
+        }
+
+        function exitInfinityMode() {
+            isInfinityMode = false;
+            if (infinityLayerGroup) {
+                map.removeLayer(infinityLayerGroup);
+                infinityLayerGroup.clearLayers();
+            }
+            redrawMapLayers(false);
+        }
+
+        map.on('click', (e) => {
+            if (isInfinityMode) {
+                exitInfinityMode();
+            }
+        });
+        // ------------------------------
 
         function jumpToStopLocation(targetStopId, origLat, origLng) {
             let stopInfo = gtfsData.stops[targetStopId];
