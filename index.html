@@ -15,13 +15,16 @@
         header.collapsed .header-top-controls { pointer-events: auto; }
 
         .header-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; position: relative; }
-        .header-date-wrapper { display: flex; align-items: center; gap: 4px; background: #334155; border: 1px solid #475569; border-radius: 4px; padding: 3px 6px; flex-shrink: 0; }
-        .header-top-controls { display: flex; gap: 4px; flex-shrink: 0; align-items: center; margin-left: auto; }
+        .header-top-controls { display: flex; gap: 4px; flex-shrink: 0; align-items: center; width: 100%; justify-content: space-between; }
+        .header-left-group { display: flex; align-items: center; gap: 4px; }
+        .header-right-group { display: flex; align-items: center; gap: 4px; }
+
         .toggle-btn, .gps-btn, .action-top-btn { background: #334155; color: #06b6d4; border: 1px solid #475569; border-radius: 4px; padding: 4px 8px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
-        #date-select { background: transparent; color: #f8fafc; border: none; font-size: 0.75rem; font-weight: bold; outline: none; cursor: pointer; }
-        #date-select option { background: #1e293b; color: #fff; }
-        .calendar-icon { font-size: 0.75rem; color: #06b6d4; pointer-events: none; }
+        /* Calendar icon button wrapper placed all the way to the right */
+        .calendar-btn-wrapper { position: relative; display: flex; align-items: center; justify-content: center; background: #334155; border: 1px solid #475569; border-radius: 4px; padding: 4px 8px; cursor: pointer; }
+        #date-select { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+        .calendar-icon { font-size: 0.8rem; color: #06b6d4; pointer-events: none; display: flex; align-items: center; justify-content: center; }
 
         #route-rows-container { display: flex; flex-direction: column; gap: 4px; width: 100%; min-width: 0; }
         .controls-row { display: flex; gap: 4px; width: 100%; min-width: 0; align-items: center; }
@@ -40,7 +43,7 @@
         body.header-is-collapsed .floating-toggle-container { display: flex; }
         .floating-btn { background: #1e293b; color: #06b6d4; border: 1px solid #475569; border-radius: 4px; padding: 6px 10px; font-size: 0.8rem; font-weight: bold; box-shadow: 0 2px 6px rgba(0,0,0,0.5); cursor: pointer; }
 
-        /* Full Window Help Overlay Page - Fixed text wrapping */
+        /* Full Window Help Overlay Page */
         #help-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; background: #0f172a; z-index: 3000; display: flex; flex-direction: column; padding: 12px; transition: opacity 0.2s ease; }
         #help-overlay.hidden { display: none; }
         .help-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 8px; }
@@ -72,7 +75,6 @@
         .popup-actions-row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; align-items: center; justify-content: space-between; }
         .popup-actions-left { display: flex; gap: 4px; align-items: center; }
 
-        /* Scroll containers with thumb drag/scroll support */
         .popup-scroll-container { max-height: 240px; overflow-y: auto; overflow-x: auto; margin-top: 4px; padding-right: 4px; -webkit-overflow-scrolling: touch; }
 
         .popup-times-title { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 6px; margin-bottom: 2px; font-weight: bold; border-top: 1px solid #334155; padding-top: 4px; white-space: nowrap; }
@@ -97,16 +99,20 @@
 
     <header id="main-header">
         <div class="header-top">
-            <div class="header-date-wrapper">
-                <select id="date-select" onchange="redrawMapLayers(false)"></select>
-                <span class="calendar-icon">📅</span>
-            </div>
             <div class="header-top-controls">
-                <button class="action-top-btn" onclick="toggleHelpOverlay()" title="Guide & Help">📝</button>
-                <button class="gps-btn" onclick="locateUser()" title="Locate GPS">🎯</button>
-                <button class="action-top-btn" onclick="findNearestRoute()" title="Find Nearest Route">🚏</button>
-                <button class="action-top-btn" onclick="addRouteRow()" title="Add Route">➕</button>
-                <button class="toggle-btn" onclick="toggleHeader()">▲</button>
+                <div class="header-left-group">
+                    <button class="action-top-btn" onclick="toggleHelpOverlay()" title="Guide & Help">📝</button>
+                    <button class="gps-btn" onclick="locateUser()" title="Locate GPS">🎯</button>
+                    <button class="action-top-btn" onclick="findNearestRoute()" title="Find Nearest Route">🚏</button>
+                    <button class="action-top-btn" onclick="addRouteRow()" title="Add Route">➕</button>
+                </div>
+                <div class="header-right-group">
+                    <div class="calendar-btn-wrapper" title="Select Date">
+                        <select id="date-select" onchange="redrawMapLayers(false)"></select>
+                        <span class="calendar-icon">📅</span>
+                    </div>
+                    <button class="toggle-btn" onclick="toggleHeader()">▲</button>
+                </div>
             </div>
         </div>
         <div id="route-rows-container">
@@ -129,14 +135,15 @@
                 <p><strong>🎯 GPS Button:</strong> Centers and focuses the map on your current GPS location.</p>
                 <p><strong>🚏 Nearest Route Button:</strong> Finds the closest route and stop relative to your current location.</p>
                 <p><strong>➕ Add Route Button:</strong> Adds an extra route selection dropdown so you can view and compare multiple bus routes on the map simultaneously.</p>
-                <p><strong>▲ / ▼ Toggle Header Button:</strong> Expands or collapses the top header panel to maximize map viewing space.</p>
+                <p><strong>📅 Calendar Icon:</strong> Tap to pick a specific schedule date.</p>
+                <p><strong>▲ / ▼ Toggle Header Button:</strong> Expands or collapses the top header panel to maximize map viewing space[cite: 2].</p>
             </div>
             <div class="help-section">
                 <h3>Stop Popups & Schedule List</h3>
                 <p>Tap any bus stop marker on the map to open its information popup:</p>
                 <ul>
-                    <li><strong>📍 Start Button:</strong> Sets the selected stop as the departure point for the Trip Planner.</li>
-                    <li><strong>🏁 End Button:</strong> Sets the selected stop as the destination point for the Trip Planner.</li>
+                    <li><strong>📍 Start Button:</strong> Sets the selected stop as the departure point for the Trip Planner (turns the arrow green).</li>
+                    <li><strong>🏁 End Button:</strong> Sets the selected stop as the destination point for the Trip Planner (turns the arrow red).</li>
                     <li><strong>🔍 Magnifier Icon:</strong> Automatically finds and opens the next closest route serving this particular stop.</li>
                     <li><strong>Scrollable Schedule Times:</strong> View scheduled arrival and departure times for each route. Tapping on any individual stop in the trip list will jump the map to that target stop, place an orange temporary marker there, and automatically zoom/fit both the originating stop and the destination stop into view.</li>
                 </ul>
