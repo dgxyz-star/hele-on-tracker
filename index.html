@@ -50,11 +50,12 @@
         .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #1e293b !important; color: #f8fafc !important; border: 1px solid #475569; border-radius: 6px; }
         .leaflet-popup-content { font-size: 0.75rem; line-height: 1.3; margin: 8px; max-width: 260px; }
         
-        .popup-header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 4px; margin-bottom: 2px; }
+        .popup-header-row { margin-bottom: 4px; }
         .popup-stop-name { font-weight: bold; color: #06b6d4; font-size: 0.8rem; display: block; line-height: 1.1; }
-        .popup-stop-meta { font-size: 0.65rem; color: #94a3b8; margin-bottom: 6px; }
+        .popup-stop-meta { font-size: 0.65rem; color: #94a3b8; margin-bottom: 4px; }
 
-        .popup-actions-row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; align-items: center; }
+        .popup-actions-row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; align-items: center; justify-content: space-between; }
+        .popup-actions-left { display: flex; gap: 4px; align-items: center; }
 
         /* Universal scroll container for all stop schedules */
         .popup-scroll-container { max-height: 240px; overflow-y: auto; margin-top: 4px; padding-right: 4px; }
@@ -487,7 +488,6 @@
                                     let localTime = st.dep || st.arr;
                                     let localLabel = st.dep ? 'D' : 'A';
                                     if (localTime) {
-                                        // Find all stop names/details visited along this trip sequence for cross-referencing
                                         let stopSequenceDetails = tripStops.map(tStop => {
                                             let sMeta = gtfsData.stops[tStop.stop_id];
                                             return {
@@ -553,7 +553,6 @@
                         tripEntriesArr.sort((a, b) => a.sortTime.localeCompare(b.sortTime));
 
                         tripEntriesArr.forEach(item => {
-                            // Build a list of clickable stops for this specific trip run
                             let stopsSnippet = item.tripStops.map(ts => `
                                 <li onclick="jumpToStopLocation('${ts.stopId}')">
                                     <span class="time-group" style="color: ${rColor};">${ts.time || ''}</span>
@@ -572,15 +571,15 @@
 
                     let popupContent = `
                         <div class="popup-header-row">
-                            <div>
-                                <span class="popup-stop-name">${stopInfo.name}</span>
-                                <div class="popup-stop-meta">Stop Code: ${stopInfo.code}</div>
-                            </div>
-                            <button class="btn-action" style="margin:0; padding:3px 6px;" onclick="openNextClosestRouteForStop('${stopId}')" title="Add Next Nearest Route">🔍</button>
+                            <span class="popup-stop-name">${stopInfo.name}</span>
+                            <div class="popup-stop-meta">Stop Code: ${stopInfo.code}</div>
                         </div>
                         <div class="popup-actions-row">
-                            <button class="btn-action" onclick="setPlannerStop('${stopId}', 'start')">📍 Set Start</button>
-                            <button class="btn-action" onclick="setPlannerStop('${stopId}', 'end')">🏁 Set End</button>
+                            <div class="popup-actions-left">
+                                <button class="btn-action" onclick="setPlannerStop('${stopId}', 'start')" title="Set Start">📍</button>
+                                <button class="btn-action" onclick="setPlannerStop('${stopId}', 'end')" title="Set End">🏁</button>
+                            </div>
+                            <button class="btn-action" onclick="openNextClosestRouteForStop('${stopId}')" title="Add Next Nearest Route">🔍</button>
                         </div>
                         <div class="popup-scroll-container">
                             ${schedulesHtml}
@@ -621,7 +620,6 @@
 
             map.setView([stopInfo.lat, stopInfo.lng], 15);
 
-            // Find the main map marker for this stop and open its popup if rendered
             markersLayer.eachLayer(layer => {
                 if (layer instanceof L.Marker) {
                     let ll = layer.getLatLng();
@@ -860,7 +858,6 @@
             }
         }
 
-        // Map long-press (or right-click) listener to find nearest route to that point
         map.on('contextmenu', (e) => {
             findNearestRouteToLatLng([e.latlng.lat, e.latlng.lng]);
         });
