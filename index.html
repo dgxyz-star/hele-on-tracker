@@ -101,16 +101,16 @@
         <div class="header-top">
             <div class="header-top-controls">
                 <div class="header-left-group">
-                    <button class="action-top-btn" onclick="toggleHelpOverlay()" title="Guide & Help">📝</button>
-                    <button class="gps-btn" onclick="locateUser()" title="Locate GPS">🎯</button>
-                    <button class="action-top-btn" onclick="findNearestRoute()" title="Find Nearest Route">🚏</button>
-                    <button class="action-top-btn" onclick="addRouteRow()" title="Add Route">➕</button>
-                </div>
-                <div class="header-right-group">
                     <div class="calendar-btn-wrapper" title="Select Date">
                         <select id="date-select" onchange="redrawMapLayers(false)"></select>
                         <span class="calendar-icon">📅</span>
                     </div>
+                </div>
+                <div class="header-right-group">
+                    <button class="action-top-btn" onclick="toggleHelpOverlay()" title="Guide & Help">📝</button>
+                    <button class="gps-btn" onclick="locateUser()" title="Locate GPS">🎯</button>
+                    <button class="action-top-btn" onclick="findNearestRoute()" title="Find Nearest Route">🚏</button>
+                    <button class="action-top-btn" onclick="addRouteRow()" title="Add Route">➕</button>
                     <button class="toggle-btn" onclick="toggleHeader()">▲</button>
                 </div>
             </div>
@@ -136,7 +136,7 @@
                 <p><strong>🚏 Nearest Route Button:</strong> Finds the closest route and stop relative to your current location.</p>
                 <p><strong>➕ Add Route Button:</strong> Adds an extra route selection dropdown so you can view and compare multiple bus routes on the map simultaneously.</p>
                 <p><strong>📅 Calendar Icon:</strong> Tap to pick a specific schedule date.</p>
-                <p><strong>▲ / ▼ Toggle Header Button:</strong> Expands or collapses the top header panel to maximize map viewing space[cite: 2].</p>
+                <p><strong>▲ / ▼ Toggle Header Button:</strong> Expands or collapses the top header panel to maximize map viewing space.</p>
             </div>
             <div class="help-section">
                 <h3>Stop Popups & Schedule List</h3>
