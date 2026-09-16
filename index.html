@@ -129,6 +129,17 @@
         let availableRouteOptionsHtml = '<option value="">Select Route</option>';
 
         const vibrantRouteColors = ['#f43f5e', '#38bdf8', '#4ade80', '#f59e0b', '#a855f7', '#ec4899', '#14b8a6', '#84cc16', '#eab308', '#6366f1'];
+        let routeColorMap = {};
+        let colorIndexCounter = 0;
+
+        function getRouteColor(routeId) {
+            if (!routeId) return 'transparent';
+            if (!routeColorMap[routeId]) {
+                routeColorMap[routeId] = vibrantRouteColors[colorIndexCounter % vibrantRouteColors.length];
+                colorIndexCounter++;
+            }
+            return routeColorMap[routeId];
+        }
 
         function parseCSV(text) {
             let lines = text.trim().split(/\r\n|\n/);
@@ -344,27 +355,12 @@
         }
 
         function updateRowColorIndicator(selectEl) {
-            const selects = document.querySelectorAll('.route-select-dropdown');
-            let activeRouteIds = [];
-            selects.forEach(sel => {
-                if (sel.value && !activeRouteIds.includes(sel.value)) {
-                    activeRouteIds.push(sel.value);
-                }
-            });
-
-            let routeColorMap = {};
-            activeRouteIds.forEach((routeId, idx) => {
-                routeColorMap[routeId] = vibrantRouteColors[idx % vibrantRouteColors.length];
-            });
-
-            selects.forEach(sel => {
-                const indicator = sel.closest('.select-wrapper').querySelector('.route-color-indicator');
-                if (sel.value && routeColorMap[sel.value]) {
-                    indicator.style.background = routeColorMap[sel.value];
-                } else {
-                    indicator.style.background = 'transparent';
-                }
-            });
+            const indicator = selectEl.closest('.select-wrapper').querySelector('.route-color-indicator');
+            if (selectEl.value) {
+                indicator.style.background = getRouteColor(selectEl.value);
+            } else {
+                indicator.style.background = 'transparent';
+            }
         }
 
         function removeRouteRow(btn) {
@@ -461,11 +457,6 @@
 
             if (activeRouteIds.length === 0) return;
 
-            let routeColorMap = {};
-            activeRouteIds.forEach((routeId, idx) => {
-                routeColorMap[routeId] = vibrantRouteColors[idx % vibrantRouteColors.length];
-            });
-
             const targetDate = getTargetEvaluationDate();
             let activeStopsMap = {};
             let activeShapesMap = new Map();
@@ -518,7 +509,7 @@
                 if (points && points.length > 0) {
                     let lineCoords = points.map(p => [p.lat, p.lng]);
                     let polyline = L.polyline(lineCoords, {
-                        color: routeColorMap[routeId] || '#06b6d4',
+                        color: getRouteColor(routeId),
                         weight: 5,
                         opacity: 0.75
                     });
@@ -532,7 +523,7 @@
                 if (stopInfo && !isNaN(stopInfo.lat) && !isNaN(stopInfo.lng)) {
                     let matchInfo = getClosestShapeMatch(stopInfo.lat, stopInfo.lng, activeShapesMap);
 
-                    let finalIconColor = routeColorMap[matchInfo.matchedRouteId] || '#06b6d4';
+                    let finalIconColor = getRouteColor(matchInfo.matchedRouteId);
                     if (stopId === tripPlanner.startStopId) {
                         finalIconColor = '#f97316';
                     } else if (stopId === tripPlanner.endStopId) {
@@ -543,7 +534,7 @@
                     let schedulesHtml = '';
 
                     Object.keys(routesAtStop).forEach(rId => {
-                        let rColor = routeColorMap[rId] || '#4ade80';
+                        let rColor = getRouteColor(rId);
                         let rawRouteObj = gtfsData.rawRoutes[rId] || {};
                         let rDisplayName = rawRouteObj.route_short_name ? `Route ${rawRouteObj.route_short_name}` : `Route`;
                         if (rawRouteObj.route_long_name) rDisplayName += `: ${rawRouteObj.route_long_name}`;
