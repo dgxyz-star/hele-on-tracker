@@ -494,9 +494,9 @@
         function getTargetEvaluationDate() {
             const val = document.getElementById('date-select').value;
             if (!val || val.length !== 8) return new Date();
-            let year = parseInt(val.substring(0, 4));
-            let month = parseInt(val.substring(4, 6)) - 1;
-            let day = parseInt(val.substring(6, 8));
+            let year = parseInt(val.substring(0, 4), 10);
+            let month = parseInt(val.substring(4, 6), 10) - 1;
+            let day = parseInt(val.substring(6, 8), 10);
             return new Date(year, month, day);
         }
 
@@ -571,12 +571,11 @@
             return cleaned || name;
         }
 
-        // Cross-references the current phone time against stop times and sets text color (Red / Green)
+        // Cross-references current phone time against stop times and sets text color (Red / Green), handling GTFS hours >= 24
         function updateStopTextColors() {
             const now = new Date();
             const currentTotalMins = now.getHours() * 60 + now.getMinutes();
 
-            // Check if user is viewing today's date
             const targetDate = getTargetEvaluationDate();
             const today = new Date();
             const isToday = targetDate.getFullYear() === today.getFullYear() &&
@@ -592,18 +591,17 @@
                 const textSpan = li.querySelector('.stop-name-text');
                 if (!timeSpan || !textSpan) return;
 
-                const timeStr = timeSpan.textContent.trim(); // e.g. "06:30"
+                const timeStr = timeSpan.textContent.trim(); // e.g. "06:30" or "25:15"
                 if (!timeStr.includes(':')) return;
 
                 const parts = timeStr.split(':');
                 const stopTotalMins = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
 
                 if (!isToday) {
-                    // If viewing a future date, default everything to available (Green)
                     textSpan.style.color = '#4ade80';
                 } else {
                     if (stopTotalMins < currentTotalMins) {
-                        textSpan.style.color = '#ff4d4d'; // Red for past times (no longer available)
+                        textSpan.style.color = '#ff4d4d'; // Red for past times
                     } else {
                         textSpan.style.color = '#4ade80'; // Green for future times
                     }
@@ -772,8 +770,7 @@
                     });
 
                     let marker = L.marker([stopInfo.lat, stopInfo.lng], { icon: svgArrowIcon }).bindPopup(popupContent);
-                    
-                    // Trigger color check whenever popup opens
+
                     marker.on('popupopen', () => {
                         updateStopTextColors();
                     });
