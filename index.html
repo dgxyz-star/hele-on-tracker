@@ -190,7 +190,7 @@
         <div class="help-body">
             <div class="help-section">
                 <h3>Map Zooming & Gestures</h3>
-                <p><strong>👆 Double-Tap & Drag Zoom:</strong> Double-tap with your finger and hold on the second tap, then push up to zoom in or push down to zoom out of the map smoothly.</p>
+                <p><strong>👆 Double-Tap & Drag Zoom:</strong> Double-tap with your finger and hold on the second tap, then slide down to zoom in or slide up to zoom out of the map smoothly.</p>
             </div>
             <div class="help-section">
                 <h3>Top Control Bar & Floating Menu</h3>
@@ -266,7 +266,7 @@
             attribution: '&copy; OpenStreetMap'
         }).addTo(map);
 
-        // Custom Vertical Drag-to-Zoom Gesture Interaction
+        // Custom Vertical Drag-to-Zoom Gesture Interaction: Slide down -> Zoom in, Slide up -> Zoom out
         const mapContainer = map.getContainer();
         let lastPointerDownTime = 0;
         let isDragZooming = false;
@@ -297,7 +297,9 @@
             e.preventDefault();
             e.stopPropagation();
 
-            const deltaY = dragZoomStartY - e.clientY;
+            // Slide Down: e.clientY > dragZoomStartY => positive zoomDelta => Zoom in
+            // Slide Up:   e.clientY < dragZoomStartY => negative zoomDelta => Zoom out
+            const deltaY = e.clientY - dragZoomStartY;
             const zoomDelta = deltaY / 50;
             const newZoom = Math.min(map.getMaxZoom(), Math.max(map.getMinZoom(), dragZoomStartZoom + zoomDelta));
 
