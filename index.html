@@ -882,6 +882,7 @@
             return cleaned || name;
         }
 
+        // Reliably updates text colors inside all active and newly opened popups
         function updateStopTextColors() {
             const now = new Date();
             const currentTotalMins = now.getHours() * 60 + now.getMinutes();
@@ -892,32 +893,45 @@
                             targetDate.getMonth() === today.getMonth() &&
                             targetDate.getDate() === today.getDate();
 
-            const popupContentContainer = document.querySelector('.leaflet-popup-content');
-            if (!popupContentContainer) return;
+            // Support all active or transitioning popups in the DOM
+            const popupContainers = document.querySelectorAll('.leaflet-popup-content');
+            if (!popupContainers || popupContainers.length === 0) return;
 
-            const stopListItems = popupContentContainer.querySelectorAll('.popup-times-list li');
-            stopListItems.forEach(li => {
-                const timeSpan = li.querySelector('.time-group');
-                const textSpan = li.querySelector('.stop-name-text');
-                if (!timeSpan || !textSpan) return;
+            popupContainers.forEach(popupContentContainer => {
+                const stopListItems = popupContentContainer.querySelectorAll('.popup-times-list li');
+                stopListItems.forEach(li => {
+                    const timeSpan = li.querySelector('.time-group');
+                    const textSpan = li.querySelector('.stop-name-text');
+                    if (!timeSpan || !textSpan) return;
 
-                const timeStr = timeSpan.textContent.trim();
-                if (!timeStr.includes(':')) return;
+                    const timeStr = timeSpan.textContent.trim();
+                    const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
+                    if (!timeMatch) return;
 
-                const parts = timeStr.split(':');
-                const stopTotalMins = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+                    const stopTotalMins = parseInt(timeMatch[1], 10) * 60 + parseInt(timeMatch[2], 10);
 
-                if (!isToday) {
-                    textSpan.style.color = '#4ade80';
-                } else {
-                    if (stopTotalMins < currentTotalMins) {
-                        textSpan.style.color = '#ff4d4d';
-                    } else {
+                    if (!isToday) {
                         textSpan.style.color = '#4ade80';
+                    } else {
+                        if (stopTotalMins < currentTotalMins) {
+                            textSpan.style.color = '#ff4d4d';
+                        } else {
+                            textSpan.style.color = '#4ade80';
+                        }
                     }
-                }
+                });
             });
         }
+
+        // Global listener on Leaflet map to guarantee popup colors update when opened
+        map.on('popupopen', () => {
+            updateStopTextColors();
+            setTimeout(updateStopTextColors, 50);
+            setTimeout(updateStopTextColors, 150);
+        });
+
+        // Periodic color refresh to keep time states up-to-date
+        setInterval(updateStopTextColors, 30000);
 
         function getActiveRouteIds() {
             const selects = document.querySelectorAll('.route-select-dropdown');
@@ -1045,7 +1059,7 @@
                         let tripsSnippet = '';
                         tripEntriesArr.forEach(item => {
                             let stopsSnippet = item.tripStops.map(ts => `
-                                <li onclick="jumpToStopLocation('${ts.stopId}', ${stopInfo.lat}, ${stopInfo.lng})" title="${ts.fullName}">
+                                <li onclick="event.stopPropagation(); jumpToStopLocation('${ts.stopId}', ${stopInfo.lat}, ${stopInfo.lng})" title="${ts.fullName}">
                                     <span class="time-group" style="color: ${rColor};">${ts.time || ''}</span>
                                     <span class="stop-name-text">${ts.name}</span>
                                 </li>
@@ -1106,6 +1120,8 @@
 
                     marker.on('popupopen', () => {
                         updateStopTextColors();
+                        setTimeout(updateStopTextColors, 50);
+                        setTimeout(updateStopTextColors, 150);
                     });
 
                     markersLayer.addLayer(marker);
@@ -1448,6 +1464,12 @@
                     }
                 }
             });
+
+            // Force immediate and staged updates so text colors reliably repaint after map navigation
+            updateStopTextColors();
+            setTimeout(updateStopTextColors, 50);
+            setTimeout(updateStopTextColors, 150);
+            setTimeout(updateStopTextColors, 300);
         }
 
         function openNextClosestRouteForStop(stopId) {
