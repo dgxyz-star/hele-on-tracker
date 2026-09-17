@@ -80,17 +80,19 @@
         #qr-overlay.hidden { display: none; }
 
         /* Per-Route Bottom Panels Container & Cards */
-        #route-panels-container { position: absolute; bottom: 0; left: 0; width: 100%; z-index: 1000; max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 8px; pointer-events: none; box-sizing: border-box; }
-        .route-panel-card { background: #1e293b; border-radius: 6px; box-shadow: 0 -4px 12px rgba(0,0,0,0.5); border: 1px solid #334155; pointer-events: auto; display: flex; flex-direction: column; overflow: hidden; transition: max-height 0.3s ease; }
-        .route-panel-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; font-size: 0.75rem; font-weight: bold; background: rgba(15, 23, 42, 0.4); cursor: pointer; }
-        .route-panel-body { padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #334155; }
+        #route-panels-container { position: absolute; bottom: 0; left: 0; width: 100%; z-index: 1000; max-height: 75vh; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 8px; pointer-events: none; box-sizing: border-box; }
+        .route-panel-card { background: #1e293b; border-radius: 6px; box-shadow: 0 -4px 12px rgba(0,0,0,0.5); border: 1px solid #334155; pointer-events: auto; display: flex; flex-direction: column; overflow: hidden; flex: 1 1 auto; min-height: 0; }
+        .route-panel-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; font-size: 0.75rem; font-weight: bold; background: rgba(15, 23, 42, 0.4); cursor: pointer; flex-shrink: 0; }
+        .route-panel-body { padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #334155; overflow: hidden; flex: 1 1 auto; min-height: 0; }
         .route-panel-card.collapsed .route-panel-body { display: none; }
-        .route-selectors-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        .route-selectors-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; flex-shrink: 0; }
         .route-selector-group { display: flex; flex-direction: column; gap: 2px; }
         .route-selector-group label { font-size: 0.65rem; color: #94a3b8; font-weight: bold; }
         .route-stop-select { background: #0f172a; color: #f8fafc; border: 1px solid #475569; border-radius: 4px; padding: 4px 6px; font-size: 0.7rem; outline: none; width: 100%; }
-        .route-trip-results { list-style: none; overflow-y: auto; max-height: 120px; display: flex; flex-direction: column; gap: 4px; padding-right: 2px; }
-        .route-trip-results li { background: #0f172a; padding: 5px 8px; border-radius: 4px; font-size: 0.7rem; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #4ade80; }
+        
+        /* Scrollable Trip Results List */
+        .route-trip-results { list-style: none; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 4px; padding-right: 2px; flex: 1 1 auto; min-height: 60px; max-height: none; }
+        .route-trip-results li { background: #0f172a; padding: 6px 8px; border-radius: 4px; font-size: 0.7rem; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #4ade80; flex-shrink: 0; }
 
         .btn-action { background: #334155; color: #06b6d4; border: 1px solid #475569; padding: 4px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
         .btn-action:active { background: #475569; }
@@ -192,7 +194,7 @@
                 <ul>
                     <li><strong>Setting Start/End Stops:</strong> Tap any bus stop marker on the map and click the 📍 (Start) or 🏁 (End) buttons. Doing so automatically opens that route's bottom trip planner card.</li>
                     <li><strong>Dual Selection Methods:</strong> Once a route card is open, you can either continue using the map popups or use the dropdown selectors inside the card to fine-tune your start and end stops.</li>
-                    <li><strong>Direct Trip Matching:</strong> Valid scheduled trips running between your chosen start and end stops will automatically populate inside the card.</li>
+                    <li><strong>Dynamic Equal-Share Space & Scrolling:</strong> Multiple active route cards automatically resize to share available vertical screen space equally. Each card is independently scrollable so you can easily thumb through all matching scheduled trips.</li>
                     <li><strong>Clearing & Collapsing:</strong> Use the "Clear" button on the card to reset your selections and hide the panel, or tap the card header to collapse/expand it.</li>
                 </ul>
             </div>
@@ -906,14 +908,15 @@
             if (activeRouteIds.length === 0) return;
 
             const targetDate = getTargetEvaluationDate();
-
-            activeRouteIds.forEach(routeId => {
+            let activePlannerRouteIds = activeRouteIds.filter(routeId => {
                 let planner = routePlanners[routeId];
-                // Only render/show panel if a start or end stop is actively set
-                if (!planner || (!planner.startStopId && !planner.endStopId)) {
-                    return;
-                }
+                return planner && (planner.startStopId || planner.endStopId);
+            });
 
+            if (activePlannerRouteIds.length === 0) return;
+
+            activePlannerRouteIds.forEach(routeId => {
+                let planner = routePlanners[routeId];
                 let rColor = getRouteColor(routeId);
                 let rawRouteObj = gtfsData.rawRoutes[routeId] || {};
                 let rName = rawRouteObj.route_short_name ? `Route ${rawRouteObj.route_short_name}` : `Route`;
@@ -999,7 +1002,7 @@
                                 <select class="route-stop-select" onchange="onRouteStopSelectChange('${routeId}', 'end', this)">${endOptions}</select>
                             </div>
                         </div>
-                        <div style="font-size: 0.65rem; color: #94a3b8; font-weight: bold; margin-top: 2px;">Scheduled Trips:</div>
+                        <div style="font-size: 0.65rem; color: #94a3b8; font-weight: bold; margin-top: 2px; flex-shrink: 0;">Scheduled Trips:</div>
                         <ul class="route-trip-results">
                             ${tripResultsHtml}
                         </ul>
