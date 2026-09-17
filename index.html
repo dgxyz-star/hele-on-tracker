@@ -61,7 +61,7 @@
         /* Floating Controls Normalized to 36x31px */
         .floating-left-container { position: absolute; top: 6px; left: 8px; z-index: 1001; display: none; gap: 4px; }
         body.header-is-collapsed .floating-left-container { display: flex; }
-        
+
         .floating-toggle-container { position: absolute; top: 6px; right: 8px; z-index: 1001; display: none; gap: 4px; }
         body.header-is-collapsed .floating-toggle-container { display: flex; }
 
@@ -401,7 +401,12 @@
             });
         }
 
-        const map = L.map('map', { zoomControl: false, doubleClickZoom: false }).setView([19.5750, -154.9600], 11);
+        // Coordinates for Big Island of Hawaii Fallback
+        const FALLBACK_CENTER = [19.5667, -155.5000];
+        const FALLBACK_ZOOM = 9;
+
+        // Initialize map with fallback center & zoom
+        const map = L.map('map', { zoomControl: false, doubleClickZoom: false }).setView(FALLBACK_CENTER, FALLBACK_ZOOM);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
@@ -465,6 +470,57 @@
 
         let userMarker = null;
         let lastUserLatLng = null;
+        let hasInitialCenteredOnUser = false;
+
+        function updateUserMarker(latLng) {
+            if (!userMarker) {
+                let userIcon = L.divIcon({ className: 'user-loc-dot', iconSize: [10, 10], iconAnchor: [5, 5] });
+                userMarker = L.marker(latLng, { icon: userIcon }).addTo(map).bindPopup("<b>You are here</b>");
+            } else {
+                userMarker.setLatLng(latLng);
+            }
+        }
+
+        // Live Geolocation Initializer with Fallback to Big Island
+        function initLiveGeolocation() {
+            if (!("geolocation" in navigator)) {
+                map.setView(FALLBACK_CENTER, FALLBACK_ZOOM);
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                position => {
+                    const userLatLng = [position.coords.latitude, position.coords.longitude];
+                    lastUserLatLng = userLatLng;
+                    updateUserMarker(userLatLng);
+                    if (!hasInitialCenteredOnUser && getActiveRouteIds().length === 0) {
+                        map.setView(userLatLng, 15);
+                        hasInitialCenteredOnUser = true;
+                    }
+                },
+                error => {
+                    console.warn("GPS unavailable or access denied. Falling back to Big Island of Hawaii view:", error.message);
+                    map.setView(FALLBACK_CENTER, FALLBACK_ZOOM);
+                },
+                { enableHighAccuracy: true, timeout: 8000, maximumAge: 15000 }
+            );
+
+            navigator.geolocation.watchPosition(
+                position => {
+                    const userLatLng = [position.coords.latitude, position.coords.longitude];
+                    lastUserLatLng = userLatLng;
+                    updateUserMarker(userLatLng);
+                    if (!hasInitialCenteredOnUser && getActiveRouteIds().length === 0) {
+                        map.setView(userLatLng, 15);
+                        hasInitialCenteredOnUser = true;
+                    }
+                },
+                error => {
+                    console.warn("GPS tracking error:", error.message);
+                },
+                { enableHighAccuracy: true, maximumAge: 10000, timeout: 8000 }
+            );
+        }
 
         let gtfsData = { routes: {}, rawRoutes: {}, trips: {}, stops: {}, stopTimes: {}, shapes: {}, calendar: {}, calendarDates: {} };
         let routePlanners = {}; // routeId -> { startStopId, endStopId, isCollapsed }
@@ -1466,6 +1522,7 @@
             } else if ("geolocation" in navigator) {
                 navigator.geolocation.getCurrentPosition(position => {
                     lastUserLatLng = [position.coords.latitude, position.coords.longitude];
+                    updateUserMarker(lastUserLatLng);
                     map.setView(lastUserLatLng, 16);
                 }, err => {
                     alert("Unable to retrieve your location.");
@@ -1528,6 +1585,7 @@
                 navigator.geolocation.getCurrentPosition(position => {
                     let userLatLng = [position.coords.latitude, position.coords.longitude];
                     lastUserLatLng = userLatLng;
+                    updateUserMarker(userLatLng);
                     findNearestRouteToLatLng(userLatLng);
                 }, err => {
                     alert("Unable to retrieve your location.");
@@ -1541,18 +1599,8 @@
             findNearestRouteToLatLng([e.latlng.lat, e.latlng.lng]);
         });
 
-        if ("geolocation" in navigator) {
-            navigator.geolocation.watchPosition(position => {
-                lastUserLatLng = [position.coords.latitude, position.coords.longitude];
-                if (!userMarker) {
-                    let userIcon = L.divIcon({ className: 'user-loc-dot', iconSize: [10, 10], iconAnchor: [5, 5] });
-                    userMarker = L.marker(lastUserLatLng, { icon: userIcon }).addTo(map).bindPopup("<b>You are here</b>");
-                } else {
-                    userMarker.setLatLng(lastUserLatLng);
-                }
-            }, null, { enableHighAccuracy: true, maximumAge: 10000, timeout: 5000 });
-        }
-
+        // Initialize geolocation and load transit feed
+        initLiveGeolocation();
         loadGTFSData();
     </script>
 </body>
