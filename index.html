@@ -831,8 +831,8 @@
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
                                     <span class="popup-times-title" style="color: ${rColor};">${rDisplayName}</span>
                                     <div style="display: flex; gap: 3px;">
-                                        <button class="btn-action" style="padding: 2px 5px; font-size: 0.55rem;" onclick="setRoutePlannerStop('${rId}', '${stopId}', 'start')">📍 Start</button>
-                                        <button class="btn-action" style="padding: 2px 5px; font-size: 0.55rem;" onclick="setRoutePlannerStop('${rId}', '${stopId}', 'end')">🏁 End</button>
+                                        <button class="btn-action" style="padding: 2px 6px; font-size: 0.65rem;" onclick="setRoutePlannerStop('${rId}', '${stopId}', 'start')">📍</button>
+                                        <button class="btn-action" style="padding: 2px 6px; font-size: 0.65rem;" onclick="setRoutePlannerStop('${rId}', '${stopId}', 'end')">🏁</button>
                                     </div>
                                 </div>
                                 ${tripsSnippet}
@@ -849,8 +849,12 @@
                             <span class="popup-stop-name" title="${mainStopRawName}">${cleanedMainStopName}</span>
                             <div class="popup-stop-meta">Stop Code: ${stopInfo.code}</div>
                         </div>
-                        <div class="popup-actions-row" style="margin-bottom: 6px;">
-                            <button class="btn-action" style="width: 100%; justify-content: center;" onclick="openNextClosestRouteForStop('${stopId}')" title="Add Next Nearest Route">🔍 Find Next Route Serving Stop</button>
+                        <div class="popup-actions-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <div style="display: flex; gap: 3px;">
+                                <button class="btn-action" style="padding: 3px 8px;" onclick="setRoutePlannerStop('${matchInfo.matchedRouteId}', '${stopId}', 'start')">📍</button>
+                                <button class="btn-action" style="padding: 3px 8px;" onclick="setRoutePlannerStop('${matchInfo.matchedRouteId}', '${stopId}', 'end')">🏁</button>
+                            </div>
+                            <button class="btn-action" style="padding: 3px 8px;" onclick="openNextClosestRouteForStop('${stopId}')" title="Find Next Route Serving Stop">🔍</button>
                         </div>
                         <div class="popup-scroll-container">
                             ${schedulesHtml}
@@ -970,11 +974,11 @@
 
                 cardDiv.innerHTML = `
                     <div class="route-panel-header" onclick="toggleRoutePanel('${routeId}')">
-                        <span style="color: ${rColor};">${rName}</span>
                         <div style="display: flex; gap: 6px; align-items: center;">
                             <button class="btn-action" style="padding: 2px 6px; font-size: 0.6rem;" onclick="event.stopPropagation(); clearRoutePlanner('${routeId}')">Clear</button>
-                            <span style="color: #06b6d4; font-size: 0.7rem;">${planner.isCollapsed ? '▲' : '▼'}</span>
+                            <span style="color: ${rColor};">${rName}</span>
                         </div>
+                        <span style="color: #06b6d4; font-size: 0.7rem;">${planner.isCollapsed ? '▲' : '▼'}</span>
                     </div>
                     <div class="route-panel-body">
                         <div class="route-selectors-grid">
