@@ -10,7 +10,7 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }
 
-        header { background: #1e293b; padding: 6px 8px; border-bottom: 1px solid #334155; display: flex; flex-direction: column; gap: 4px; z-index: 1000; transition: transform 0.3s ease; flex-shrink: 0; }
+        header { background: #1e293b; padding: 6px 8px; border-bottom: 1px solid #334155; display: flex; flex-direction: column; gap: 4px; z-index: 1000; transition: transform 0.3s ease; }
         header.collapsed { transform: translateY(-100%); position: absolute; width: 100%; pointer-events: none; }
         header.collapsed .header-top-controls { pointer-events: auto; }
 
@@ -21,6 +21,7 @@
 
         .toggle-btn, .gps-btn, .action-top-btn { background: #334155; color: #06b6d4; border: 1px solid #475569; border-radius: 4px; padding: 4px 8px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
+        /* Calendar icon button wrapper */
         .calendar-btn-wrapper { position: relative; display: flex; align-items: center; justify-content: center; background: #334155; border: 1px solid #475569; border-radius: 4px; padding: 4px 8px; cursor: pointer; }
         #date-select { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
         .calendar-icon { font-size: 0.8rem; color: #06b6d4; pointer-events: none; display: flex; align-items: center; justify-content: center; }
@@ -38,6 +39,7 @@
 
         #map { flex: 1; width: 100%; background: #0f172a; z-index: 1; position: relative; touch-action: none; }
 
+        /* Floating Left Container for QR, Calendar, and Notepad */
         .floating-left-container { position: absolute; top: 6px; left: 8px; z-index: 1001; display: flex; gap: 4px; }
         .floating-left-container .calendar-btn-wrapper,
         .floating-left-container .action-top-btn {
@@ -54,12 +56,15 @@
             justify-content: center;
             color: #06b6d4;
         }
-        .floating-left-container .calendar-icon { font-size: 0.8rem; }
+        .floating-left-container .calendar-icon {
+            font-size: 0.8rem;
+        }
 
         .floating-toggle-container { position: absolute; top: 6px; right: 8px; z-index: 1001; display: none; gap: 4px; }
         body.header-is-collapsed .floating-toggle-container { display: flex; }
         .floating-btn { background: #1e293b; color: #06b6d4; border: 1px solid #475569; border-radius: 4px; padding: 6px 10px; font-size: 0.8rem; font-weight: bold; box-shadow: 0 2px 6px rgba(0,0,0,0.5); cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
+        /* Full Window Help Overlay Page */
         #help-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; background: #0f172a; z-index: 3000; display: flex; flex-direction: column; padding: 12px; transition: opacity 0.2s ease; }
         #help-overlay.hidden { display: none; }
         .help-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 8px; }
@@ -70,21 +75,23 @@
         .help-section p, .help-section li { font-size: 0.75rem; color: #cbd5e1; line-height: 1.4; margin-bottom: 4px; word-break: break-word; overflow-wrap: break-word; }
         .help-section ul { padding-left: 16px; }
 
+        /* QR Code Modal Overlay */
         #qr-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; background: rgba(15, 23, 42, 0.85); z-index: 3000; display: flex; align-items: center; justify-content: center; padding: 12px; transition: opacity 0.2s ease; }
         #qr-overlay.hidden { display: none; }
 
-        /* Per-Route Bottom Panels Container & Cards - Fixed flex/height constraints */
-        #route-panels-container { position: absolute; bottom: 0; left: 0; width: 100%; z-index: 1000; display: flex; flex-direction: column; gap: 6px; padding: 8px; pointer-events: none; box-sizing: border-box; }
-        .route-panel-card { background: #1e293b; border-radius: 6px; box-shadow: 0 -4px 12px rgba(0,0,0,0.5); border: 1px solid #334155; pointer-events: auto; display: flex; flex-direction: column; overflow: hidden; min-height: 120px; flex: 0 0 auto; }
+        /* Per-Route Bottom Panels Container & Cards (50/50 Flex Split Applied) */
+        #route-panels-container { position: absolute; bottom: 0; left: 0; width: 100%; z-index: 1000; max-height: 75vh; height: 50vh; overflow-y: hidden; display: flex; flex-direction: column; gap: 6px; padding: 8px; pointer-events: none; box-sizing: border-box; }
+        .route-panel-card { background: #1e293b; border-radius: 6px; box-shadow: 0 -4px 12px rgba(0,0,0,0.5); border: 1px solid #334155; pointer-events: auto; display: flex; flex-direction: column; overflow: hidden; flex: 1 1 50%; min-height: 0; }
         .route-panel-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; font-size: 0.75rem; font-weight: bold; background: rgba(15, 23, 42, 0.4); cursor: pointer; flex-shrink: 0; }
-        .route-panel-body { padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #334155; overflow: hidden; flex: 1 1 auto; min-height: 80px; }
+        .route-panel-body { padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #334155; overflow: hidden; flex: 1 1 auto; min-height: 0; }
         .route-panel-card.collapsed .route-panel-body { display: none; }
         .route-selectors-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; flex-shrink: 0; }
         .route-selector-group { display: flex; flex-direction: column; gap: 2px; }
         .route-selector-group label { font-size: 0.65rem; color: #94a3b8; font-weight: bold; }
         .route-stop-select { background: #0f172a; color: #f8fafc; border: 1px solid #475569; border-radius: 4px; padding: 4px 6px; font-size: 0.7rem; outline: none; width: 100%; }
 
-        .route-trip-results { list-style: none; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 4px; padding-right: 2px; flex: 1 1 auto; min-height: 50px; max-height: 120px; }
+        /* Scrollable Trip Results List */
+        .route-trip-results { list-style: none; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 4px; padding-right: 2px; flex: 1 1 auto; min-height: 60px; max-height: none; }
         .route-trip-results li { background: #0f172a; padding: 6px 8px; border-radius: 4px; font-size: 0.7rem; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #4ade80; flex-shrink: 0; }
 
         .btn-action { background: #334155; color: #06b6d4; border: 1px solid #475569; padding: 4px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
@@ -187,7 +194,7 @@
                 <ul>
                     <li><strong>Setting Start/End Stops:</strong> Tap any bus stop marker on the map and click the 📍 (Start) or 🏁 (End) buttons. Doing so automatically opens that route's bottom trip planner card.</li>
                     <li><strong>Dual Selection Methods:</strong> Once a route card is open, you can either continue using the map popups or use the dropdown selectors inside the card to fine-tune your start and end stops.</li>
-                    <li><strong>Dynamic Equal-Share Space & Scrolling:</strong> Multiple active route cards automatically resize to share available vertical screen space equally up to the top header. Each card is independently scrollable.</li>
+                    <li><strong>Dynamic Equal-Share Space & Scrolling:</strong> Multiple active route cards automatically resize to share available vertical screen space equally. Each card is independently scrollable so you can easily thumb through all matching scheduled trips.</li>
                     <li><strong>Clearing & Collapsing:</strong> Use the "Clear" button on the card to reset your selections and hide the panel, or tap the card header to collapse/expand it.</li>
                 </ul>
             </div>
@@ -204,7 +211,7 @@
             const header = document.getElementById('main-header');
             const isCollapsed = header.classList.toggle('collapsed');
             document.body.classList.toggle('header-is-collapsed', isCollapsed);
-            setTimeout(() => { map.invalidateSize(); updatePanelsMaxHeight(); }, 300);
+            setTimeout(() => { map.invalidateSize(); }, 300);
         }
 
         function toggleHelpOverlay() {
@@ -535,7 +542,6 @@
                 updateRowColorIndicator(selectEl);
                 redrawMapLayers(shouldCenter);
             }
-            updatePanelsMaxHeight();
         }
 
         function onRouteDropdownChange(selectEl) {
@@ -569,22 +575,7 @@
                 updateRowColorIndicator(selectEl);
             }
             redrawMapLayers(false);
-            updatePanelsMaxHeight();
         }
-
-        function updatePanelsMaxHeight() {
-            const header = document.getElementById('main-header');
-            const container = document.getElementById('route-panels-container');
-            if (!header || !container) return;
-
-            const headerRect = header.getBoundingClientRect();
-            const headerBottom = header.classList.contains('collapsed') ? 0 : headerRect.bottom;
-            const availableHeight = window.innerHeight - headerBottom - 16; // 16px padding
-
-            container.style.maxHeight = `${Math.max(100, availableHeight)}px`;
-        }
-
-        window.addEventListener('resize', updatePanelsMaxHeight);
 
         function getTargetEvaluationDate() {
             const val = document.getElementById('date-select').value;
@@ -914,10 +905,7 @@
             if (!container) return;
             container.innerHTML = '';
 
-            if (activeRouteIds.length === 0) {
-                updatePanelsMaxHeight();
-                return;
-            }
+            if (activeRouteIds.length === 0) return;
 
             const targetDate = getTargetEvaluationDate();
             let activePlannerRouteIds = activeRouteIds.filter(routeId => {
@@ -925,10 +913,7 @@
                 return planner && (planner.startStopId || planner.endStopId);
             });
 
-            if (activePlannerRouteIds.length === 0) {
-                updatePanelsMaxHeight();
-                return;
-            }
+            if (activePlannerRouteIds.length === 0) return;
 
             activePlannerRouteIds.forEach(routeId => {
                 let planner = routePlanners[routeId];
@@ -937,44 +922,21 @@
                 let rName = rawRouteObj.route_short_name ? `Route ${rawRouteObj.route_short_name}` : `Route`;
                 if (rawRouteObj.route_long_name) rName += `: ${rawRouteObj.route_long_name}`;
 
-                // Gather stops sorted in order of appearance along the route's trips
-                let bestTripStops = [];
-                let maxStopsCount = 0;
-                Object.keys(gtfsData.trips).forEach(tripId => {
-                    let trip = gtfsData.trips[tripId];
-                    if (trip.route_id === routeId && isServiceActive(trip.service_id, targetDate)) {
-                        let tripStops = gtfsData.stopTimes[tripId] || [];
-                        if (tripStops.length > maxStopsCount) {
-                            maxStopsCount = tripStops.length;
-                            bestTripStops = tripStops;
-                        }
-                    }
-                });
-
-                let sortedRouteStops = [];
-                let addedStops = new Set();
-                bestTripStops.forEach(st => {
-                    let sMeta = gtfsData.stops[st.stop_id];
-                    if (sMeta && !addedStops.has(st.stop_id)) {
-                        addedStops.add(st.stop_id);
-                        sortedRouteStops.push([st.stop_id, cleanStopName(sMeta.name, rawRouteObj.route_long_name || '')]);
-                    }
-                });
-
-                // Catch any remaining active stops for this route
+                let routeStopsMap = new Map();
                 Object.keys(gtfsData.trips).forEach(tripId => {
                     let trip = gtfsData.trips[tripId];
                     if (trip.route_id === routeId && isServiceActive(trip.service_id, targetDate)) {
                         let tripStops = gtfsData.stopTimes[tripId] || [];
                         tripStops.forEach(st => {
                             let sMeta = gtfsData.stops[st.stop_id];
-                            if (sMeta && !addedStops.has(st.stop_id)) {
-                                addedStops.add(st.stop_id);
-                                sortedRouteStops.push([st.stop_id, cleanStopName(sMeta.name, rawRouteObj.route_long_name || '')]);
+                            if (sMeta && !routeStopsMap.has(st.stop_id)) {
+                                routeStopsMap.set(st.stop_id, cleanStopName(sMeta.name, rawRouteObj.route_long_name || ''));
                             }
                         });
                     }
                 });
+
+                let sortedRouteStops = Array.from(routeStopsMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
 
                 let startOptions = '<option value="">Select Start Stop</option>';
                 let endOptions = '<option value="">Select End Stop</option>';
@@ -1021,6 +983,7 @@
                 cardDiv.className = `route-panel-card ${planner.isCollapsed ? 'collapsed' : ''}`;
                 cardDiv.style.borderLeft = `4px solid ${rColor}`;
 
+                // Duplicate inline buttons removed from route panel header
                 cardDiv.innerHTML = `
                     <div class="route-panel-header" onclick="toggleRoutePanel('${routeId}')">
                         <div style="display: flex; gap: 6px; align-items: center;">
@@ -1048,8 +1011,6 @@
                 `;
                 container.appendChild(cardDiv);
             });
-
-            updatePanelsMaxHeight();
         }
 
         function toggleRoutePanel(routeId) {
