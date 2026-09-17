@@ -178,6 +178,10 @@
         </div>
         <div class="help-body">
             <div class="help-section">
+                <h3>Map Zooming & Gestures</h3>
+                <p><strong>🔍 Double-Tap & Drag Zoom:</strong> Double-tap with your finger and hold on the second tap, then push up to zoom in or push down to zoom out of the map smoothly.</p>
+            </div>
+            <div class="help-section">
                 <h3>Top Control Bar & Floating Menu</h3>
                 <p><strong>🔲 QR Code Button:</strong> Opens a share modal displaying a QR code and URL link to easily share this live app with others.</p>
                 <p><strong>📝 Notepad Icon:</strong> Opens this full-window guide and functionality overview.</p>
@@ -922,7 +926,28 @@
                 let rName = rawRouteObj.route_short_name ? `Route ${rawRouteObj.route_short_name}` : `Route`;
                 if (rawRouteObj.route_long_name) rName += `: ${rawRouteObj.route_long_name}`;
 
+                // Sort stops by order of appearance using the most complete/longest active trip
+                let bestTripStops = [];
+                Object.keys(gtfsData.trips).forEach(tripId => {
+                    let trip = gtfsData.trips[tripId];
+                    if (trip.route_id === routeId && isServiceActive(trip.service_id, targetDate)) {
+                        let tripStops = gtfsData.stopTimes[tripId] || [];
+                        if (tripStops.length > bestTripStops.length) {
+                            bestTripStops = tripStops;
+                        }
+                    }
+                });
+
                 let routeStopsMap = new Map();
+                let sortedRouteStops = [];
+                bestTripStops.forEach(st => {
+                    let sMeta = gtfsData.stops[st.stop_id];
+                    if (sMeta && !routeStopsMap.has(st.stop_id)) {
+                        let cleanName = cleanStopName(sMeta.name, rawRouteObj.route_long_name || '');
+                        routeStopsMap.set(st.stop_id, cleanName);
+                        sortedRouteStops.push([st.stop_id, cleanName]);
+                    }
+                });
                 Object.keys(gtfsData.trips).forEach(tripId => {
                     let trip = gtfsData.trips[tripId];
                     if (trip.route_id === routeId && isServiceActive(trip.service_id, targetDate)) {
@@ -930,13 +955,13 @@
                         tripStops.forEach(st => {
                             let sMeta = gtfsData.stops[st.stop_id];
                             if (sMeta && !routeStopsMap.has(st.stop_id)) {
-                                routeStopsMap.set(st.stop_id, cleanStopName(sMeta.name, rawRouteObj.route_long_name || ''));
+                                let cleanName = cleanStopName(sMeta.name, rawRouteObj.route_long_name || '');
+                                routeStopsMap.set(st.stop_id, cleanName);
+                                sortedRouteStops.push([st.stop_id, cleanName]);
                             }
                         });
                     }
                 });
-
-                let sortedRouteStops = Array.from(routeStopsMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
 
                 let startOptions = '<option value="">Select Start Stop</option>';
                 let endOptions = '<option value="">Select End Stop</option>';
