@@ -930,10 +930,6 @@
                 return;
             }
 
-            let numCards = activePlannerRouteIds.length;
-            // Calculate flex-basis dynamically so all open cards split available vertical space equally
-            let flexBasisVal = (100 / numCards).toFixed(2) + '%';
-
             activePlannerRouteIds.forEach(routeId => {
                 let planner = routePlanners[routeId];
                 let rColor = getRouteColor(routeId);
@@ -941,21 +937,44 @@
                 let rName = rawRouteObj.route_short_name ? `Route ${rawRouteObj.route_short_name}` : `Route`;
                 if (rawRouteObj.route_long_name) rName += `: ${rawRouteObj.route_long_name}`;
 
-                let routeStopsMap = new Map();
+                // Gather stops sorted in order of appearance along the route's trips
+                let bestTripStops = [];
+                let maxStopsCount = 0;
+                Object.keys(gtfsData.trips).forEach(tripId => {
+                    let trip = gtfsData.trips[tripId];
+                    if (trip.route_id === routeId && isServiceActive(trip.service_id, targetDate)) {
+                        let tripStops = gtfsData.stopTimes[tripId] || [];
+                        if (tripStops.length > maxStopsCount) {
+                            maxStopsCount = tripStops.length;
+                            bestTripStops = tripStops;
+                        }
+                    }
+                });
+
+                let sortedRouteStops = [];
+                let addedStops = new Set();
+                bestTripStops.forEach(st => {
+                    let sMeta = gtfsData.stops[st.stop_id];
+                    if (sMeta && !addedStops.has(st.stop_id)) {
+                        addedStops.add(st.stop_id);
+                        sortedRouteStops.push([st.stop_id, cleanStopName(sMeta.name, rawRouteObj.route_long_name || '')]);
+                    }
+                });
+
+                // Catch any remaining active stops for this route
                 Object.keys(gtfsData.trips).forEach(tripId => {
                     let trip = gtfsData.trips[tripId];
                     if (trip.route_id === routeId && isServiceActive(trip.service_id, targetDate)) {
                         let tripStops = gtfsData.stopTimes[tripId] || [];
                         tripStops.forEach(st => {
                             let sMeta = gtfsData.stops[st.stop_id];
-                            if (sMeta && !routeStopsMap.has(st.stop_id)) {
-                                routeStopsMap.set(st.stop_id, cleanStopName(sMeta.name, rawRouteObj.route_long_name || ''));
+                            if (sMeta && !addedStops.has(st.stop_id)) {
+                                addedStops.add(st.stop_id);
+                                sortedRouteStops.push([st.stop_id, cleanStopName(sMeta.name, rawRouteObj.route_long_name || '')]);
                             }
                         });
                     }
                 });
-
-                let sortedRouteStops = Array.from(routeStopsMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
 
                 let startOptions = '<option value="">Select Start Stop</option>';
                 let endOptions = '<option value="">Select End Stop</option>';
@@ -1001,7 +1020,8 @@
                 let cardDiv = document.createElement('div');
                 cardDiv.className = `route-panel-card ${planner.isCollapsed ? 'collapsed' : ''}`;
                 cardDiv.style.borderLeft = `4px solid ${rColor}`;
-                cardDiv.style.flex = `1 1 ${flexBasisVal}`;
+                // Each window shares container space equally and flexibly
+                cardDiv.style.flex = `1 1 0`;
 
                 cardDiv.innerHTML = `
                     <div class="route-panel-header" onclick="toggleRoutePanel('${routeId}')">
