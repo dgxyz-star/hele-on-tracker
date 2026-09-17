@@ -79,9 +79,9 @@
         #qr-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; background: rgba(15, 23, 42, 0.85); z-index: 3000; display: flex; align-items: center; justify-content: center; padding: 12px; transition: opacity 0.2s ease; }
         #qr-overlay.hidden { display: none; }
 
-        /* Per-Route Bottom Panels Container & Cards (50/50 Flex Split Applied) */
-        #route-panels-container { position: absolute; bottom: 0; left: 0; width: 100%; z-index: 1000; max-height: 75vh; height: 50vh; overflow-y: hidden; display: flex; flex-direction: column; gap: 6px; padding: 8px; pointer-events: none; box-sizing: border-box; }
-        .route-panel-card { background: #1e293b; border-radius: 6px; box-shadow: 0 -4px 12px rgba(0,0,0,0.5); border: 1px solid #334155; pointer-events: auto; display: flex; flex-direction: column; overflow: hidden; flex: 1 1 50%; min-height: 0; }
+        /* Per-Route Bottom Panels Container & Cards */
+        #route-panels-container { position: absolute; bottom: 0; left: 0; width: 100%; z-index: 1000; max-height: 75vh; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 8px; pointer-events: none; box-sizing: border-box; }
+        .route-panel-card { background: #1e293b; border-radius: 6px; box-shadow: 0 -4px 12px rgba(0,0,0,0.5); border: 1px solid #334155; pointer-events: auto; display: flex; flex-direction: column; overflow: hidden; flex: 1 1 auto; min-height: 0; }
         .route-panel-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; font-size: 0.75rem; font-weight: bold; background: rgba(15, 23, 42, 0.4); cursor: pointer; flex-shrink: 0; }
         .route-panel-body { padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #334155; overflow: hidden; flex: 1 1 auto; min-height: 0; }
         .route-panel-card.collapsed .route-panel-body { display: none; }
@@ -983,7 +983,6 @@
                 cardDiv.className = `route-panel-card ${planner.isCollapsed ? 'collapsed' : ''}`;
                 cardDiv.style.borderLeft = `4px solid ${rColor}`;
 
-                // Duplicate inline buttons removed from route panel header
                 cardDiv.innerHTML = `
                     <div class="route-panel-header" onclick="toggleRoutePanel('${routeId}')">
                         <div style="display: flex; gap: 6px; align-items: center;">
