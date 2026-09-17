@@ -79,18 +79,20 @@
         #qr-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; background: rgba(15, 23, 42, 0.85); z-index: 3000; display: flex; align-items: center; justify-content: center; padding: 12px; transition: opacity 0.2s ease; }
         #qr-overlay.hidden { display: none; }
 
-        /* Trip Planner Panel */
-        #planner-panel { position: absolute; bottom: 0; left: 0; width: 100%; background: #1e293b; border-top: 2px solid #06b6d4; z-index: 1000; padding: 10px; max-height: 45vh; display: flex; flex-direction: column; box-shadow: 0 -4px 12px rgba(0,0,0,0.5); transition: transform 0.3s ease, max-height 0.3s ease; }
-        #planner-panel.hidden { transform: translateY(100%); display: none; }
-        #planner-panel.collapsed { max-height: 44px; }
-        #planner-panel.collapsed #planner-results { display: none; }
-        .planner-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 0.75rem; font-weight: bold; color: #06b6d4; }
-        #planner-panel.collapsed .planner-header { margin-bottom: 0; }
-        .planner-routes-list { list-style: none; overflow-y: auto; max-height: 140px; padding-right: 2px; }
-        .planner-routes-list li { background: #0f172a; padding: 6px; margin-bottom: 4px; border-radius: 4px; font-size: 0.7rem; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #4ade80; }
-        .planner-times { font-family: monospace; color: #4ade80; font-weight: bold; }
+        /* Per-Route Bottom Panels Container & Cards */
+        #route-panels-container { position: absolute; bottom: 0; left: 0; width: 100%; z-index: 1000; max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 8px; pointer-events: none; box-sizing: border-box; }
+        .route-panel-card { background: #1e293b; border-radius: 6px; box-shadow: 0 -4px 12px rgba(0,0,0,0.5); border: 1px solid #334155; pointer-events: auto; display: flex; flex-direction: column; overflow: hidden; transition: max-height 0.3s ease; }
+        .route-panel-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; font-size: 0.75rem; font-weight: bold; background: rgba(15, 23, 42, 0.4); cursor: pointer; }
+        .route-panel-body { padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #334155; }
+        .route-panel-card.collapsed .route-panel-body { display: none; }
+        .route-selectors-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        .route-selector-group { display: flex; flex-direction: column; gap: 2px; }
+        .route-selector-group label { font-size: 0.65rem; color: #94a3b8; font-weight: bold; }
+        .route-stop-select { background: #0f172a; color: #f8fafc; border: 1px solid #475569; border-radius: 4px; padding: 4px 6px; font-size: 0.7rem; outline: none; width: 100%; }
+        .route-trip-results { list-style: none; overflow-y: auto; max-height: 120px; display: flex; flex-direction: column; gap: 4px; padding-right: 2px; }
+        .route-trip-results li { background: #0f172a; padding: 5px 8px; border-radius: 4px; font-size: 0.7rem; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #4ade80; }
 
-        .btn-action { background: #334155; color: #06b6d4; border: 1px solid #475569; padding: 4px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; cursor: pointer; margin-top: 4px; margin-right: 4px; display: inline-flex; align-items: center; justify-content: center; }
+        .btn-action { background: #334155; color: #06b6d4; border: 1px solid #475569; padding: 4px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
         .btn-action:active { background: #475569; }
 
         .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #1e293b !important; color: #f8fafc !important; border: 1px solid #475569; border-radius: 6px; }
@@ -100,12 +102,11 @@
         .popup-stop-name { font-weight: bold; color: #06b6d4; font-size: 0.8rem; display: block; line-height: 1.1; }
         .popup-stop-meta { font-size: 0.65rem; color: #94a3b8; margin-bottom: 4px; }
 
-        .popup-actions-row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px; align-items: center; justify-content: space-between; }
-        .popup-actions-left { display: flex; gap: 4px; align-items: center; }
-
         .popup-scroll-container { max-height: 240px; overflow-y: auto; overflow-x: auto; margin-top: 4px; padding-right: 4px; -webkit-overflow-scrolling: touch; }
+        .popup-route-section { margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #334155; }
+        .popup-route-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
 
-        .popup-times-title { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 6px; margin-bottom: 2px; font-weight: bold; border-top: 1px solid #334155; padding-top: 4px; white-space: nowrap; }
+        .popup-times-title { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; margin-bottom: 2px; font-weight: bold; white-space: nowrap; }
         .popup-times-list { list-style-type: none; padding-left: 0; min-width: max-content; }
         .popup-times-list li { background: #0f172a; padding: 4px 8px; margin-bottom: 2px; border-radius: 3px; font-size: 0.65rem; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: background 0.15s; white-space: nowrap; }
         .popup-times-list li:hover { background: #334155; }
@@ -137,9 +138,7 @@
     <header id="main-header">
         <div class="header-top">
             <div class="header-top-controls">
-                <div class="header-left-group">
-                    <!-- Calendar and Notepad permanently reside in the floating-left-container now -->
-                </div>
+                <div class="header-left-group"></div>
                 <div class="header-right-group">
                     <button class="gps-btn" onclick="locateUser()" title="Locate GPS">🎯</button>
                     <button class="action-top-btn" onclick="toggleInfinityMode()" title="Explore All Routes">∞</button>
@@ -149,9 +148,7 @@
                 </div>
             </div>
         </div>
-        <div id="route-rows-container">
-            <!-- Dynamic route selection rows will be added here -->
-        </div>
+        <div id="route-rows-container"></div>
     </header>
 
     <div id="map"></div>
@@ -183,41 +180,26 @@
                 <p><strong>🔲 QR Code Button:</strong> Opens a share modal displaying a QR code and URL link to easily share this live app with others.</p>
                 <p><strong>📝 Notepad Icon:</strong> Opens this full-window guide and functionality overview.</p>
                 <p><strong>🎯 GPS Button:</strong> Centers and focuses the map on your current GPS location.</p>
-                <p><strong>∞ Infinity Route Exploration Button:</strong> Enters an exploration mode where all available transit routes are displayed as background lines across the map. Tapping any route on the map saves it to your dropdown rows sequentially. Tapping anywhere on empty map space exits this mode and keeps only your selected routes.</p>
+                <p><strong>∞ Infinity Route Exploration Button:</strong> Enters an exploration mode where all available transit routes are displayed as background lines across the map.</p>
                 <p><strong>🚏 Nearest Route Button:</strong> Finds the closest route and stop relative to your current location.</p>
                 <p><strong>➕ Add Route Button:</strong> Adds an extra route selection dropdown so you can view and compare multiple bus routes on the map simultaneously.</p>
                 <p><strong>📅 Calendar Icon:</strong> Tap to pick a specific schedule date.</p>
                 <p><strong>▲ Toggle Header Button:</strong> Expands or collapses the top header panel to maximize map viewing space.</p>
             </div>
             <div class="help-section">
-                <h3>Stop Popups & Schedule List</h3>
-                <p>Tap any bus stop marker on the map to open its information popup:</p>
+                <h3>Per-Route Start/Stop Selectors & Panels</h3>
+                <p>For each active route selected above, a corresponding collapsible panel/card is displayed at the bottom of the screen matching the route's unique color:</p>
                 <ul>
-                    <li><strong>📍 Start Button:</strong> Sets the selected stop as the departure point for the Trip Planner.</li>
-                    <li><strong>🏁 End Button:</strong> Sets the selected stop as the destination point for the Trip Planner.</li>
-                    <li><strong>🔍 Magnifier Icon:</strong> Automatically finds and opens the next closest route serving this particular stop; pressing it multiple times will subsequently add additional next route selection rows.</li>
-                    <li><strong>Scrollable Schedule Times:</strong> View scheduled arrival and departure times for each route.</li>
+                    <li><strong>Start & End Selectors:</strong> Choose a departure and destination stop per route to instantly filter and view matching trip schedules.</li>
+                    <li><strong>Popup Quick Actions:</strong> Tap any stop marker and use the route-specific 📍 Start or 🏁 End buttons to configure start and end stops directly from the map.</li>
+                    <li><strong>Collapse/Expand Toggle:</strong> Tap any route panel header to collapse or expand it individually.</li>
                 </ul>
-            </div>
-            <div class="help-section">
-                <h3>General Map Interaction</h3>
-                <p><strong>Long Press / Right-Click:</strong> Pressing and holding (or right-clicking) anywhere on the map will instantly search for and load the nearest bus route to that location.</p>
-                <p><strong>Vertical Drag-to-Zoom:</strong> Double-tap the screen and hold/drag vertically up or down to scale the map smoothly.</p>
             </div>
         </div>
     </div>
 
-    <!-- Bottom Trip Planner Results Panel -->
-    <div id="planner-panel" class="hidden">
-        <div class="planner-header">
-            <span id="planner-title">Trip Planner</span>
-            <div style="display: flex; gap: 4px; align-items: center;">
-                <button class="btn-action" onclick="clearPlanner()">Clear Route</button>
-                <button class="toggle-btn" id="planner-toggle-btn" onclick="togglePlannerPanel()" title="Toggle Planner">▼</button>
-            </div>
-        </div>
-        <ul id="planner-results" class="planner-routes-list"></ul>
-    </div>
+    <!-- Bottom Per-Route Panels Container -->
+    <div id="route-panels-container"></div>
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -226,16 +208,6 @@
             const header = document.getElementById('main-header');
             const isCollapsed = header.classList.toggle('collapsed');
             document.body.classList.toggle('header-is-collapsed', isCollapsed);
-
-            setTimeout(() => { map.invalidateSize(); }, 300);
-        }
-
-        function togglePlannerPanel() {
-            const panel = document.getElementById('planner-panel');
-            const btn = document.getElementById('planner-toggle-btn');
-            const isCollapsed = panel.classList.toggle('collapsed');
-            btn.textContent = isCollapsed ? '▲' : '▼';
-
             setTimeout(() => { map.invalidateSize(); }, 300);
         }
 
@@ -324,7 +296,7 @@
         let lastUserLatLng = null;
 
         let gtfsData = { routes: {}, rawRoutes: {}, trips: {}, stops: {}, stopTimes: {}, shapes: {}, calendar: {}, calendarDates: {} };
-        let tripPlanner = { startStopId: null, endStopId: null };
+        let routePlanners = {}; // routeId -> { startStopId, endStopId, isCollapsed }
         let availableRouteOptionsHtml = '<option value="">Select Route</option>';
 
         const vibrantRouteColors = ['#f43f5e', '#38bdf8', '#4ade80', '#f59e0b', '#a855f7', '#ec4899', '#14b8a6', '#84cc16', '#eab308', '#6366f1'];
@@ -340,7 +312,6 @@
             return routeColorMap[routeId];
         }
 
-        // Dynamically compute a high-contrast opposite color relative to the route color
         function getContrastColor(hexColor, type) {
             if (!hexColor || hexColor.charAt(0) !== '#') {
                 return type === 'start' ? '#00ffff' : '#ff00ff';
@@ -715,12 +686,7 @@
             });
         }
 
-        function redrawMapLayers(shouldCenter = false) {
-            if (isInfinityMode) return;
-
-            markersLayer.clearLayers();
-            tempMarkerLayer.clearLayers();
-
+        function getActiveRouteIds() {
             const selects = document.querySelectorAll('.route-select-dropdown');
             let activeRouteIds = [];
             selects.forEach(sel => {
@@ -728,8 +694,20 @@
                     activeRouteIds.push(sel.value);
                 }
             });
+            return activeRouteIds;
+        }
 
-            if (activeRouteIds.length === 0) return;
+        function redrawMapLayers(shouldCenter = false) {
+            if (isInfinityMode) return;
+
+            markersLayer.clearLayers();
+            tempMarkerLayer.clearLayers();
+
+            const activeRouteIds = getActiveRouteIds();
+            if (activeRouteIds.length === 0) {
+                renderRoutePanels([]);
+                return;
+            }
 
             const targetDate = getTargetEvaluationDate();
             let activeStopsMap = {};
@@ -803,13 +781,19 @@
                 let stopInfo = gtfsData.stops[stopId];
                 if (stopInfo && !isNaN(stopInfo.lat) && !isNaN(stopInfo.lng)) {
                     let matchInfo = getClosestShapeMatch(stopInfo.lat, stopInfo.lng, activeShapesMap);
-
                     let routeColor = getRouteColor(matchInfo.matchedRouteId);
                     let finalIconColor = routeColor;
 
-                    if (stopId === tripPlanner.startStopId) {
+                    let isStartForAny = false;
+                    let isEndForAny = false;
+                    Object.keys(routePlanners).forEach(rId => {
+                        if (routePlanners[rId]?.startStopId === stopId) isStartForAny = true;
+                        if (routePlanners[rId]?.endStopId === stopId) isEndForAny = true;
+                    });
+
+                    if (isStartForAny) {
                         finalIconColor = getContrastColor(routeColor, 'start');
-                    } else if (stopId === tripPlanner.endStopId) {
+                    } else if (isEndForAny) {
                         finalIconColor = getContrastColor(routeColor, 'end');
                     }
 
@@ -822,11 +806,10 @@
                         let rDisplayName = rawRouteObj.route_short_name ? `Route ${rawRouteObj.route_short_name}` : `Route`;
                         if (rawRouteObj.route_long_name) rDisplayName += `: ${rawRouteObj.route_long_name}`;
 
-                        schedulesHtml += `<div class="popup-times-title" style="color: ${rColor};">${rDisplayName}</div>`;
-
                         let tripEntriesArr = routesAtStop[rId];
                         tripEntriesArr.sort((a, b) => a.sortTime.localeCompare(b.sortTime));
 
+                        let tripsSnippet = '';
                         tripEntriesArr.forEach(item => {
                             let stopsSnippet = item.tripStops.map(ts => `
                                 <li onclick="jumpToStopLocation('${ts.stopId}', ${stopInfo.lat}, ${stopInfo.lng})" title="${ts.fullName}">
@@ -835,13 +818,26 @@
                                 </li>
                             `).join('');
 
-                            schedulesHtml += `
+                            tripsSnippet += `
                                 <div style="font-size:0.6rem; color:#cbd5e1; margin-top:4px; font-weight:bold; white-space:nowrap;">Trip @ ${item.sortTime} (Tap stop to locate):</div>
                                 <ul class="popup-times-list" style="margin-top:2px;">
                                     ${stopsSnippet}
                                 </ul>
                             `;
                         });
+
+                        schedulesHtml += `
+                            <div class="popup-route-section" style="border-left: 3px solid ${rColor}; padding-left: 6px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                                    <span class="popup-times-title" style="color: ${rColor};">${rDisplayName}</span>
+                                    <div style="display: flex; gap: 3px;">
+                                        <button class="btn-action" style="padding: 2px 5px; font-size: 0.55rem;" onclick="setRoutePlannerStop('${rId}', '${stopId}', 'start')">📍 Start</button>
+                                        <button class="btn-action" style="padding: 2px 5px; font-size: 0.55rem;" onclick="setRoutePlannerStop('${rId}', '${stopId}', 'end')">🏁 End</button>
+                                    </div>
+                                </div>
+                                ${tripsSnippet}
+                            </div>
+                        `;
                     });
 
                     let mainStopRawName = stopInfo.name;
@@ -853,12 +849,8 @@
                             <span class="popup-stop-name" title="${mainStopRawName}">${cleanedMainStopName}</span>
                             <div class="popup-stop-meta">Stop Code: ${stopInfo.code}</div>
                         </div>
-                        <div class="popup-actions-row">
-                            <div class="popup-actions-left">
-                                <button class="btn-action" onclick="setPlannerStop('${stopId}', 'start')" title="Set Start">📍</button>
-                                <button class="btn-action" onclick="setPlannerStop('${stopId}', 'end')" title="Set End">🏁</button>
-                            </div>
-                            <button class="btn-action" onclick="openNextClosestRouteForStop('${stopId}')" title="Add Next Nearest Route">🔍</button>
+                        <div class="popup-actions-row" style="margin-bottom: 6px;">
+                            <button class="btn-action" style="width: 100%; justify-content: center;" onclick="openNextClosestRouteForStop('${stopId}')" title="Add Next Nearest Route">🔍 Find Next Route Serving Stop</button>
                         </div>
                         <div class="popup-scroll-container">
                             ${schedulesHtml}
@@ -891,9 +883,161 @@
             if (shouldCenter && routeBounds.isValid()) {
                 map.fitBounds(routeBounds, { padding: [50, 50] });
             }
+
+            renderRoutePanels(activeRouteIds);
         }
 
-        // --- Infinity Mode Handlers with Dual-Layer 5x Touch Target Hit-Boxes ---
+        // --- Per-Route Panels & Trip Evaluator ---
+        function renderRoutePanels(activeRouteIds) {
+            const container = document.getElementById('route-panels-container');
+            if (!container) return;
+            container.innerHTML = '';
+
+            if (activeRouteIds.length === 0) return;
+
+            const targetDate = getTargetEvaluationDate();
+
+            activeRouteIds.forEach(routeId => {
+                if (!routePlanners[routeId]) {
+                    routePlanners[routeId] = { startStopId: null, endStopId: null, isCollapsed: false };
+                }
+                let planner = routePlanners[routeId];
+                let rColor = getRouteColor(routeId);
+                let rawRouteObj = gtfsData.rawRoutes[routeId] || {};
+                let rName = rawRouteObj.route_short_name ? `Route ${rawRouteObj.route_short_name}` : `Route`;
+                if (rawRouteObj.route_long_name) rName += `: ${rawRouteObj.route_long_name}`;
+
+                let routeStopsMap = new Map();
+                Object.keys(gtfsData.trips).forEach(tripId => {
+                    let trip = gtfsData.trips[tripId];
+                    if (trip.route_id === routeId && isServiceActive(trip.service_id, targetDate)) {
+                        let tripStops = gtfsData.stopTimes[tripId] || [];
+                        tripStops.forEach(st => {
+                            let sMeta = gtfsData.stops[st.stop_id];
+                            if (sMeta && !routeStopsMap.has(st.stop_id)) {
+                                routeStopsMap.set(st.stop_id, cleanStopName(sMeta.name, rawRouteObj.route_long_name || ''));
+                            }
+                        });
+                    }
+                });
+
+                let sortedRouteStops = Array.from(routeStopsMap.entries()).sort((a, b) => a[1].localeCompare(b[1]));
+
+                let startOptions = '<option value="">Select Start Stop</option>';
+                let endOptions = '<option value="">Select End Stop</option>';
+                sortedRouteStops.forEach(([sId, sName]) => {
+                    let startSelected = (sId === planner.startStopId) ? 'selected' : '';
+                    let endSelected = (sId === planner.endStopId) ? 'selected' : '';
+                    startOptions += `<option value="${sId}" ${startSelected}>${sName}</option>`;
+                    endOptions += `<option value="${sId}" ${endSelected}>${sName}</option>`;
+                });
+
+                let tripResultsHtml = '';
+                if (planner.startStopId && planner.endStopId) {
+                    let validTrips = [];
+                    Object.keys(gtfsData.trips).forEach(tripId => {
+                        let trip = gtfsData.trips[tripId];
+                        if (trip.route_id === routeId && isServiceActive(trip.service_id, targetDate)) {
+                            let stops = gtfsData.stopTimes[tripId] || [];
+                            let startIndex = -1, endIndex = -1;
+                            for (let i = 0; i < stops.length; i++) {
+                                if (stops[i].stop_id === planner.startStopId) startIndex = i;
+                                if (stops[i].stop_id === planner.endStopId) endIndex = i;
+                            }
+                            if (startIndex !== -1 && endIndex !== -1 && startIndex < endIndex) {
+                                let depTime = stops[startIndex].dep || stops[startIndex].arr;
+                                let arrTime = stops[endIndex].arr || stops[endIndex].dep;
+                                validTrips.push({ depTime, arrTime });
+                            }
+                        }
+                    });
+                    validTrips.sort((a, b) => a.depTime.localeCompare(b.depTime));
+
+                    if (validTrips.length > 0) {
+                        validTrips.forEach(vt => {
+                            tripResultsHtml += `<li><span style="font-family:monospace; color:#4ade80; font-weight:bold;">Dep: ${vt.depTime} &rarr; Arr: ${vt.arrTime}</span></li>`;
+                        });
+                    } else {
+                        tripResultsHtml = `<li style="justify-content:center; color:#f43f5e;">No direct trips found between selected stops.</li>`;
+                    }
+                } else {
+                    tripResultsHtml = `<li style="justify-content:center; color:#94a3b8;">Select start and end stops above.</li>`;
+                }
+
+                let cardDiv = document.createElement('div');
+                cardDiv.className = `route-panel-card ${planner.isCollapsed ? 'collapsed' : ''}`;
+                cardDiv.style.borderLeft = `4px solid ${rColor}`;
+
+                cardDiv.innerHTML = `
+                    <div class="route-panel-header" onclick="toggleRoutePanel('${routeId}')">
+                        <span style="color: ${rColor};">${rName}</span>
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                            <button class="btn-action" style="padding: 2px 6px; font-size: 0.6rem;" onclick="event.stopPropagation(); clearRoutePlanner('${routeId}')">Clear</button>
+                            <span style="color: #06b6d4; font-size: 0.7rem;">${planner.isCollapsed ? '▲' : '▼'}</span>
+                        </div>
+                    </div>
+                    <div class="route-panel-body">
+                        <div class="route-selectors-grid">
+                            <div class="route-selector-group">
+                                <label>Start Stop</label>
+                                <select class="route-stop-select" onchange="onRouteStopSelectChange('${routeId}', 'start', this)">${startOptions}</select>
+                            </div>
+                            <div class="route-selector-group">
+                                <label>End Stop</label>
+                                <select class="route-stop-select" onchange="onRouteStopSelectChange('${routeId}', 'end', this)">${endOptions}</select>
+                            </div>
+                        </div>
+                        <div style="font-size: 0.65rem; color: #94a3b8; font-weight: bold; margin-top: 2px;">Scheduled Trips:</div>
+                        <ul class="route-trip-results">
+                            ${tripResultsHtml}
+                        </ul>
+                    </div>
+                `;
+                container.appendChild(cardDiv);
+            });
+        }
+
+        function toggleRoutePanel(routeId) {
+            if (!routePlanners[routeId]) return;
+            routePlanners[routeId].isCollapsed = !routePlanners[routeId].isCollapsed;
+            renderRoutePanels(getActiveRouteIds());
+            setTimeout(() => { map.invalidateSize(); }, 300);
+        }
+
+        function setRoutePlannerStop(routeId, stopId, type) {
+            if (!routePlanners[routeId]) {
+                routePlanners[routeId] = { startStopId: null, endStopId: null, isCollapsed: false };
+            }
+            if (type === 'start') {
+                routePlanners[routeId].startStopId = stopId;
+            } else {
+                routePlanners[routeId].endStopId = stopId;
+            }
+            map.closePopup();
+            redrawMapLayers(false);
+        }
+
+        function onRouteStopSelectChange(routeId, type, selectEl) {
+            if (!routePlanners[routeId]) {
+                routePlanners[routeId] = { startStopId: null, endStopId: null, isCollapsed: false };
+            }
+            if (type === 'start') {
+                routePlanners[routeId].startStopId = selectEl.value || null;
+            } else {
+                routePlanners[routeId].endStopId = selectEl.value || null;
+            }
+            redrawMapLayers(false);
+        }
+
+        function clearRoutePlanner(routeId) {
+            if (routePlanners[routeId]) {
+                routePlanners[routeId].startStopId = null;
+                routePlanners[routeId].endStopId = null;
+            }
+            redrawMapLayers(false);
+        }
+
+        // --- Infinity Mode Handlers ---
         function toggleInfinityMode() {
             if (!isInfinityMode) {
                 enterInfinityMode();
@@ -931,14 +1075,13 @@
             });
 
             const normalWeight = 4;
-            const hitBoxMultiplier = 5; // ~5x wider tap target buffer on each side
+            const hitBoxMultiplier = 5;
 
             allRouteShapes.forEach((routeId, shapeId) => {
                 let points = gtfsData.shapes[shapeId];
                 if (points && points.length > 0) {
                     let lineCoords = points.map(p => [p.lat, p.lng]);
 
-                    // 1. Invisible thick buffer line underneath for easy tapping
                     let hitBoxLine = L.polyline(lineCoords, {
                         color: 'transparent',
                         weight: normalWeight * hitBoxMultiplier,
@@ -946,7 +1089,6 @@
                         smoothFactor: 1
                     });
 
-                    // 2. Visible thin line on top
                     let visibleLine = L.polyline(lineCoords, {
                         color: getRouteColor(routeId),
                         weight: normalWeight,
@@ -1009,7 +1151,6 @@
                 exitInfinityMode();
             }
         });
-        // ------------------------------
 
         function jumpToStopLocation(targetStopId, origLat, origLng) {
             let stopInfo = gtfsData.stops[targetStopId];
@@ -1041,7 +1182,6 @@
             if (!stopInfo) return;
 
             const targetDate = getTargetEvaluationDate();
-
             let routeDistances = [];
             let routeIdsSeen = new Set();
 
@@ -1072,12 +1212,7 @@
 
             routeDistances.sort((a, b) => a.dist - b.dist);
 
-            const selects = document.querySelectorAll('.route-select-dropdown');
-            let activeRouteIds = [];
-            selects.forEach(sel => {
-                if (sel.value) activeRouteIds.push(sel.value);
-            });
-
+            const activeRouteIds = getActiveRouteIds();
             let nextRouteToOpen = null;
             for (let item of routeDistances) {
                 if (!activeRouteIds.includes(item.routeId)) {
@@ -1087,6 +1222,7 @@
             }
 
             if (nextRouteToOpen) {
+                const selects = document.querySelectorAll('.route-select-dropdown');
                 let targetSelect = null;
                 for (let sel of selects) {
                     if (!sel.value) {
@@ -1105,92 +1241,6 @@
             } else {
                 alert("All routes serving this stop are already open!");
             }
-        }
-
-        function setPlannerStop(stopId, type) {
-            if (type === 'start') {
-                tripPlanner.startStopId = stopId;
-            } else {
-                tripPlanner.endStopId = stopId;
-            }
-            map.closePopup();
-            redrawMapLayers(false);
-            evaluateTripPlanner();
-        }
-
-        function evaluateTripPlanner() {
-            const panel = document.getElementById('planner-panel');
-            const title = document.getElementById('planner-title');
-            const resultsList = document.getElementById('planner-results');
-            const btn = document.getElementById('planner-toggle-btn');
-
-            panel.classList.remove('hidden');
-            panel.classList.remove('collapsed');
-            if (btn) btn.textContent = '▼';
-
-            if (!tripPlanner.startStopId || !tripPlanner.endStopId) {
-                let startName = tripPlanner.startStopId ? gtfsData.stops[tripPlanner.startStopId].name : 'Not set';
-                let endName = tripPlanner.endStopId ? gtfsData.stops[tripPlanner.endStopId].name : 'Not set';
-                title.textContent = `Planner: ${tripPlanner.startStopId ? '📍 Start Set' : 'Select Start'} → ${tripPlanner.endStopId ? '🏁 End Set' : 'Select End'}`;
-                resultsList.innerHTML = `<li style="justify-content:center; color:#94a3b8;">From: ${startName}<br>To: ${endName}</li>`;
-                return;
-            }
-
-            let startStop = gtfsData.stops[tripPlanner.startStopId];
-            let endStop = gtfsData.stops[tripPlanner.endStopId];
-            title.textContent = `${startStop.name} ➔ ${endStop.name}`;
-
-            let validTrips = [];
-            const targetDate = getTargetEvaluationDate();
-
-            Object.keys(gtfsData.trips).forEach(tripId => {
-                let trip = gtfsData.trips[tripId];
-                if (isServiceActive(trip.service_id, targetDate)) {
-                    let stops = gtfsData.stopTimes[tripId] || [];
-                    let startIndex = -1, endIndex = -1;
-                    for (let i = 0; i < stops.length; i++) {
-                        if (stops[i].stop_id === tripPlanner.startStopId) startIndex = i;
-                        if (stops[i].stop_id === tripPlanner.endStopId) endIndex = i;
-                    }
-
-                    if (startIndex !== -1 && endIndex !== -1 && startIndex < endIndex) {
-                        let depTime = stops[startIndex].dep || stops[startIndex].arr;
-                        let arrTime = stops[endIndex].arr || stops[endIndex].dep;
-                        let finalStopEntry = stops[stops.length - 1];
-                        let destName = (finalStopEntry && gtfsData.stops[finalStopEntry.stop_id]) ? gtfsData.stops[finalStopEntry.stop_id].name : 'Direct';
-                        validTrips.push({ depTime, arrTime, headsign: destName });
-                    }
-                }
-            });
-
-            validTrips.sort((a, b) => a.depTime.localeCompare(b.depTime));
-
-            resultsList.innerHTML = '';
-            if (validTrips.length > 0) {
-                validTrips.forEach(vt => {
-                    let li = document.createElement('li');
-                    li.innerHTML = `
-                        <div>
-                            <div class="planner-times">Dep: ${vt.depTime} &rarr; Arr: ${vt.arrTime}</div>
-                            <div style="font-size:0.6rem; color:#cbd5e1;">Final Stop: ${vt.headsign}</div>
-                        </div>
-                    `;
-                    resultsList.appendChild(li);
-                });
-            } else {
-                resultsList.innerHTML = `<li style="justify-content:center; color:#f43f5e;">No direct trips found between these stops for this schedule.</li>`;
-            }
-        }
-
-        function clearPlanner() {
-            tripPlanner.startStopId = null;
-            tripPlanner.endStopId = null;
-            const panel = document.getElementById('planner-panel');
-            panel.classList.add('hidden');
-            panel.classList.remove('collapsed');
-            const btn = document.getElementById('planner-toggle-btn');
-            if (btn) btn.textContent = '▼';
-            redrawMapLayers(false);
         }
 
         function locateUser() {
