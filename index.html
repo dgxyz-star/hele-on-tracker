@@ -19,12 +19,30 @@
         .header-left-group { display: flex; align-items: center; gap: 4px; }
         .header-right-group { display: flex; align-items: center; gap: 4px; }
 
-        .toggle-btn, .gps-btn, .action-top-btn { background: #334155; color: #06b6d4; border: 1px solid #475569; border-radius: 4px; padding: 4px 8px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        /* Normalized Header Buttons */
+        .toggle-btn, .gps-btn, .action-top-btn, .calendar-btn-wrapper {
+            background: #334155;
+            color: #06b6d4;
+            border: 1px solid #475569;
+            border-radius: 4px;
+            padding: 0;
+            width: 36px;
+            height: 31px;
+            box-sizing: border-box;
+            font-size: 0.8rem;
+            font-weight: bold;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            flex-shrink: 0;
+        }
 
         /* Calendar icon button wrapper */
-        .calendar-btn-wrapper { position: relative; display: flex; align-items: center; justify-content: center; background: #334155; border: 1px solid #475569; border-radius: 4px; padding: 4px 8px; cursor: pointer; }
+        .calendar-btn-wrapper { position: relative; }
         .date-select { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-        .calendar-icon { font-size: 0.8rem; color: #06b6d4; pointer-events: none; display: flex; align-items: center; justify-content: center; }
+        .calendar-icon { font-size: 0.8rem; color: #06b6d4; pointer-events: none; display: flex; align-items: center; justify-content: center; line-height: 1; }
 
         #route-rows-container { display: flex; flex-direction: column; gap: 4px; width: 100%; min-width: 0; }
         .controls-row { display: flex; gap: 4px; width: 100%; min-width: 0; align-items: center; }
@@ -38,33 +56,43 @@
         select.route-select-dropdown option { background: #1e293b; color: #fff; }
 
         #map-container-wrapper { flex: 1; position: relative; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
-        #map { flex: 1; width: 100%; height: 100%; background: #0f172a; z-1; touch-action: none; }
+        #map { flex: 1; width: 100%; height: 100%; background: #0f172a; z-index: 1; touch-action: none; }
 
-        /* Floating Left Container for QR, Calendar, and Notepad */
+        /* Floating Controls Normalized to 36x31px */
         .floating-left-container { position: absolute; top: 6px; left: 8px; z-index: 1001; display: none; gap: 4px; }
         body.header-is-collapsed .floating-left-container { display: flex; }
+        
+        .floating-toggle-container { position: absolute; top: 6px; right: 8px; z-index: 1001; display: none; gap: 4px; }
+        body.header-is-collapsed .floating-toggle-container { display: flex; }
+
         .floating-left-container .calendar-btn-wrapper,
-        .floating-left-container .action-top-btn {
+        .floating-left-container .action-top-btn,
+        .floating-toggle-container .floating-btn {
             background: #1e293b;
+            color: #06b6d4;
             border: 1px solid #475569;
             border-radius: 4px;
-            padding: 6px 10px;
+            padding: 0;
+            width: 36px;
+            height: 31px;
+            box-sizing: border-box;
             font-size: 0.8rem;
             font-weight: bold;
             box-shadow: 0 2px 6px rgba(0,0,0,0.5);
             cursor: pointer;
-            display: flex;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            color: #06b6d4;
+            line-height: 1;
+            flex-shrink: 0;
         }
         .floating-left-container .calendar-icon {
             font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
         }
-
-        .floating-toggle-container { position: absolute; top: 6px; right: 8px; z-index: 1001; display: none; gap: 4px; }
-        body.header-is-collapsed .floating-toggle-container { display: flex; }
-        .floating-btn { background: #1e293b; color: #06b6d4; border: 1px solid #475569; border-radius: 4px; padding: 6px 10px; font-size: 0.8rem; font-weight: bold; box-shadow: 0 2px 6px rgba(0,0,0,0.5); cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
         /* Full Window Help Overlay Page */
         #help-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; background: #0f172a; z-index: 3000; display: flex; flex-direction: column; padding: 12px; transition: opacity 0.2s ease; }
@@ -81,20 +109,135 @@
         #qr-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; background: rgba(15, 23, 42, 0.85); z-index: 3000; display: flex; align-items: center; justify-content: center; padding: 12px; transition: opacity 0.2s ease; }
         #qr-overlay.hidden { display: none; }
 
-        /* Per-Route Bottom Panels Container & Cards */
-        #route-panels-container { position: absolute; bottom: 0; left: 0; width: 100%; z-index: 1000; max-height: 75vh; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 8px; pointer-events: none; box-sizing: border-box; }
-        .route-panel-card { background: #1e293b; border-radius: 6px; box-shadow: 0 -4px 12px rgba(0,0,0,0.5); border: 1px solid #334155; pointer-events: auto; display: flex; flex-direction: column; overflow: hidden; flex: 1 1 auto; min-height: 0; }
-        .route-panel-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; font-size: 0.75rem; font-weight: bold; background: rgba(15, 23, 42, 0.4); cursor: pointer; flex-shrink: 0; }
-        .route-panel-body { padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #334155; overflow: hidden; flex: 1 1 auto; min-height: 0; }
-        .route-panel-card.collapsed .route-panel-body { display: none; }
-        .route-selectors-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; flex-shrink: 0; }
-        .route-selector-group { display: flex; flex-direction: column; gap: 2px; }
-        .route-selector-group label { font-size: 0.65rem; color: #94a3b8; font-weight: bold; }
-        .route-stop-select { background: #0f172a; color: #f8fafc; border: 1px solid #475569; border-radius: 4px; padding: 4px 6px; font-size: 0.7rem; outline: none; width: 100%; }
+        /* Per-Route Bottom Panels Container & Equal-Share Cards */
+        #route-panels-container {
+            position: absolute;
+            top: 6px;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
+            justify-content: flex-start;
+            gap: 6px;
+            padding: 8px;
+            pointer-events: none;
+            box-sizing: border-box;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            transition: top 0.3s ease;
+        }
+
+        body.header-is-collapsed #route-panels-container {
+            top: 44px; /* clears floating top buttons */
+        }
+
+        #route-panels-container.all-collapsed {
+            justify-content: flex-end;
+        }
+
+        .route-panel-card {
+            background: #1e293b;
+            border-radius: 6px;
+            box-shadow: 0 -4px 12px rgba(0,0,0,0.5);
+            border: 1px solid #334155;
+            pointer-events: auto;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            flex: 1 1 0;
+            min-height: 0;
+            transition: flex 0.2s ease;
+        }
+
+        .route-panel-card.collapsed {
+            flex: 0 0 auto !important;
+        }
+
+        .route-panel-card.collapsed .route-panel-body {
+            display: none;
+        }
+
+        .route-panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            background: rgba(15, 23, 42, 0.4);
+            cursor: pointer;
+            flex-shrink: 0;
+            user-select: none;
+        }
+
+        .route-panel-body {
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            border-top: 1px solid #334155;
+            overflow: hidden;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+
+        .route-selectors-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .route-selector-group {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .route-selector-group label {
+            font-size: 0.65rem;
+            color: #94a3b8;
+            font-weight: bold;
+        }
+
+        .route-stop-select {
+            background: #0f172a;
+            color: #f8fafc;
+            border: 1px solid #475569;
+            border-radius: 4px;
+            padding: 4px 6px;
+            font-size: 0.7rem;
+            outline: none;
+            width: 100%;
+        }
 
         /* Scrollable Trip Results List */
-        .route-trip-results { list-style: none; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 4px; padding-right: 2px; flex: 1 1 auto; min-height: 60px; max-height: none; }
-        .route-trip-results li { background: #0f172a; padding: 6px 8px; border-radius: 4px; font-size: 0.7rem; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #4ade80; flex-shrink: 0; }
+        .route-trip-results {
+            list-style: none;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding-right: 2px;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+
+        .route-trip-results li {
+            background: #0f172a;
+            padding: 6px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 3px solid #4ade80;
+            flex-shrink: 0;
+        }
 
         .btn-action { background: #334155; color: #06b6d4; border: 1px solid #475569; padding: 4px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
         .btn-action:active { background: #475569; }
@@ -164,6 +307,8 @@
 
     <div id="map-container-wrapper">
         <div id="map"></div>
+        <!-- Bottom Per-Route Panels Container -->
+        <div id="route-panels-container"></div>
     </div>
 
     <!-- QR Code Share Modal Overlay -->
@@ -216,9 +361,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Bottom Per-Route Panels Container -->
-    <div id="route-panels-container"></div>
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -297,8 +439,6 @@
             e.preventDefault();
             e.stopPropagation();
 
-            // Slide Down: e.clientY > dragZoomStartY => positive zoomDelta => Zoom in
-            // Slide Up:   e.clientY < dragZoomStartY => negative zoomDelta => Zoom out
             const deltaY = e.clientY - dragZoomStartY;
             const zoomDelta = deltaY / 50;
             const newZoom = Math.min(map.getMaxZoom(), Math.max(map.getMinZoom(), dragZoomStartZoom + zoomDelta));
@@ -924,13 +1064,16 @@
             renderRoutePanels(activeRouteIds);
         }
 
-        // --- Per-Route Panels & Trip Evaluator ---
+        // --- Per-Route Panels & Dynamic Trip Evaluator ---
         function renderRoutePanels(activeRouteIds) {
             const container = document.getElementById('route-panels-container');
             if (!container) return;
             container.innerHTML = '';
 
-            if (activeRouteIds.length === 0) return;
+            if (activeRouteIds.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
 
             const targetDate = getTargetEvaluationDate();
             let activePlannerRouteIds = activeRouteIds.filter(routeId => {
@@ -938,14 +1081,26 @@
                 return planner && (planner.startStopId || planner.endStopId);
             });
 
-            if (activePlannerRouteIds.length === 0) return;
+            if (activePlannerRouteIds.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+
+            container.style.display = 'flex';
+
+            let allCollapsed = activePlannerRouteIds.every(rId => routePlanners[rId]?.isCollapsed);
+            if (allCollapsed) {
+                container.classList.add('all-collapsed');
+            } else {
+                container.classList.remove('all-collapsed');
+            }
 
             activePlannerRouteIds.forEach(routeId => {
                 let planner = routePlanners[routeId];
                 let rColor = getRouteColor(routeId);
                 let rawRouteObj = gtfsData.rawRoutes[routeId] || {};
-                let rName = rawRouteObj.route_short_name ? `Route ${rawRouteObj.route_short_name}` : `Route`;
-                if (rawRouteObj.route_long_name) rName += `: ${rawRouteObj.route_long_name}`;
+                let rDisplayName = rawRouteObj.route_short_name ? `Route ${rawRouteObj.route_short_name}` : `Route`;
+                if (rawRouteObj.route_long_name) rDisplayName += `: ${rawRouteObj.route_long_name}`;
 
                 // Sort stops by order of appearance using the most complete/longest active trip
                 let bestTripStops = [];
@@ -1033,7 +1188,7 @@
                     <div class="route-panel-header" onclick="toggleRoutePanel('${routeId}')">
                         <div style="display: flex; gap: 6px; align-items: center;">
                             <button class="btn-action" style="padding: 2px 6px; font-size: 0.6rem;" onclick="event.stopPropagation(); clearRoutePlanner('${routeId}')">Clear</button>
-                            <span style="color: ${rColor};">${rName}</span>
+                            <span style="color: ${rColor};">${rDisplayName}</span>
                         </div>
                         <span style="color: #06b6d4; font-size: 0.7rem;">${planner.isCollapsed ? '▲' : '▼'}</span>
                     </div>
@@ -1069,6 +1224,7 @@
             if (!routePlanners[routeId]) {
                 routePlanners[routeId] = { startStopId: null, endStopId: null, isCollapsed: false };
             }
+            routePlanners[routeId].isCollapsed = false;
             if (type === 'start') {
                 routePlanners[routeId].startStopId = stopId;
             } else {
