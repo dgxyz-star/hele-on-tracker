@@ -38,7 +38,7 @@
         select.route-select-dropdown option { background: #1e293b; color: #fff; }
 
         #map-container-wrapper { flex: 1; position: relative; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
-        #map { flex: 1; width: 100%; height: 100%; background: #0f172a; z-index: 1; touch-action: none; }
+        #map { flex: 1; width: 100%; height: 100%; background: #0f172a; z-1; touch-action: none; }
 
         /* Floating Left Container for QR, Calendar, and Notepad */
         .floating-left-container { position: absolute; top: 6px; left: 8px; z-index: 1001; display: none; gap: 4px; }
@@ -190,7 +190,7 @@
         <div class="help-body">
             <div class="help-section">
                 <h3>Map Zooming & Gestures</h3>
-                <p><strong>🔍 Double-Tap & Drag Zoom:</strong> Double-tap with your finger and hold on the second tap, then push up to zoom in or push down to zoom out of the map smoothly.</p>
+                <p><strong>👆 Double-Tap & Drag Zoom:</strong> Double-tap with your finger and hold on the second tap, then push up to zoom in or push down to zoom out of the map smoothly.</p>
             </div>
             <div class="help-section">
                 <h3>Top Control Bar & Floating Menu</h3>
@@ -208,6 +208,7 @@
                 <p>When you select a route from the top dropdown, it displays cleanly on the map without cluttering your screen with extra panels.</p>
                 <ul>
                     <li><strong>Setting Start/End Stops:</strong> Tap any bus stop marker on the map and click the 📍 (Start) or 🏁 (End) buttons. Doing so automatically opens that route's bottom trip planner card.</li>
+                    <li><strong>🔍 Find Sequential Closest Routes:</strong> Tap the magnifying glass icon inside any stop marker's popup to display routes serving that stop. When you press it multiple times, it will initially display the next closest route to that stop and then sequential closest routes.</li>
                     <li><strong>Dual Selection Methods:</strong> Once a route card is open, you can either continue using the map popups or use the dropdown selectors inside the card to fine-tune your start and end stops.</li>
                     <li><strong>Dynamic Equal-Share Space & Scrolling:</strong> Multiple active route cards automatically resize to share available vertical screen space equally. Each card is independently scrollable so you can easily thumb through all matching scheduled trips.</li>
                     <li><strong>Clearing & Collapsing:</strong> Use the "Clear" button on the card to reset your selections and hide the panel, or tap the card header to collapse/expand it.</li>
