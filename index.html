@@ -73,18 +73,18 @@
         #qr-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh; background: rgba(15, 23, 42, 0.85); z-index: 3000; display: flex; align-items: center; justify-content: center; padding: 12px; transition: opacity 0.2s ease; }
         #qr-overlay.hidden { display: none; }
 
-        /* Per-Route Bottom Panels Container & Cards */
+        /* Per-Route Bottom Panels Container & Cards - Fixed flex/height constraints */
         #route-panels-container { position: absolute; bottom: 0; left: 0; width: 100%; z-index: 1000; display: flex; flex-direction: column; gap: 6px; padding: 8px; pointer-events: none; box-sizing: border-box; }
-        .route-panel-card { background: #1e293b; border-radius: 6px; box-shadow: 0 -4px 12px rgba(0,0,0,0.5); border: 1px solid #334155; pointer-events: auto; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+        .route-panel-card { background: #1e293b; border-radius: 6px; box-shadow: 0 -4px 12px rgba(0,0,0,0.5); border: 1px solid #334155; pointer-events: auto; display: flex; flex-direction: column; overflow: hidden; min-height: 120px; flex: 0 0 auto; }
         .route-panel-header { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; font-size: 0.75rem; font-weight: bold; background: rgba(15, 23, 42, 0.4); cursor: pointer; flex-shrink: 0; }
-        .route-panel-body { padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #334155; overflow: hidden; flex: 1 1 auto; min-height: 0; }
+        .route-panel-body { padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid #334155; overflow: hidden; flex: 1 1 auto; min-height: 80px; }
         .route-panel-card.collapsed .route-panel-body { display: none; }
         .route-selectors-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; flex-shrink: 0; }
         .route-selector-group { display: flex; flex-direction: column; gap: 2px; }
         .route-selector-group label { font-size: 0.65rem; color: #94a3b8; font-weight: bold; }
         .route-stop-select { background: #0f172a; color: #f8fafc; border: 1px solid #475569; border-radius: 4px; padding: 4px 6px; font-size: 0.7rem; outline: none; width: 100%; }
 
-        .route-trip-results { list-style: none; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 4px; padding-right: 2px; flex: 1 1 auto; min-height: 40px; }
+        .route-trip-results { list-style: none; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; gap: 4px; padding-right: 2px; flex: 1 1 auto; min-height: 50px; max-height: 120px; }
         .route-trip-results li { background: #0f172a; padding: 6px 8px; border-radius: 4px; font-size: 0.7rem; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #4ade80; flex-shrink: 0; }
 
         .btn-action { background: #334155; color: #06b6d4; border: 1px solid #475569; padding: 4px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
@@ -1020,8 +1020,6 @@
                 let cardDiv = document.createElement('div');
                 cardDiv.className = `route-panel-card ${planner.isCollapsed ? 'collapsed' : ''}`;
                 cardDiv.style.borderLeft = `4px solid ${rColor}`;
-                // Each window shares container space equally and flexibly
-                cardDiv.style.flex = `1 1 0`;
 
                 cardDiv.innerHTML = `
                     <div class="route-panel-header" onclick="toggleRoutePanel('${routeId}')">
