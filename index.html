@@ -237,6 +237,7 @@
             align-items: center;
             border-left: 3px solid #4ade80;
             flex-shrink: 0;
+            transition: border-color 0.2s ease;
         }
 
         .btn-action { background: #334155; color: #06b6d4; border: 1px solid #475569; padding: 4px 8px; border-radius: 4px; font-size: 0.65rem; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
@@ -357,6 +358,7 @@
                     <li><strong>🔍 Find Sequential Closest Routes:</strong> Tap the magnifying glass icon inside any stop marker's popup to display routes serving that stop. When you press it multiple times, it will initially display the next closest route to that stop and then sequential closest routes.</li>
                     <li><strong>Dual Selection Methods:</strong> Once a route card is open, you can either continue using the map popups or use the dropdown selectors inside the card to fine-tune your start and end stops.</li>
                     <li><strong>Dynamic Equal-Share Space & Scrolling:</strong> Multiple active route cards automatically resize to share available vertical screen space equally. Each card is independently scrollable so you can easily thumb through all matching scheduled trips.</li>
+                    <li><strong>Dynamic Time-Based Status:</strong> Scheduled departure and arrival times inside route planner cards are dynamically color-coded based on the current local time: upcoming trips appear in green, while past or missed trips appear in red.</li>
                     <li><strong>Clearing & Collapsing:</strong> Use the "Clear" button on the card to reset your selections and hide the panel, or tap the card header to collapse/expand it.</li>
                 </ul>
             </div>
@@ -883,45 +885,82 @@
             return cleaned || name;
         }
 
-        // Reliably updates text colors inside all active and newly opened popups
-        function updateStopTextColors() {
+        // Centralized time evaluator: past/missed times in red (#ff4d4d), future/upcoming times in green (#4ade80)
+        function getTimeColor(timeStr, targetDate) {
+            if (!timeStr) return '#4ade80';
+            if (!targetDate) targetDate = getTargetEvaluationDate();
+
             const now = new Date();
             const currentTotalMins = now.getHours() * 60 + now.getMinutes();
 
-            const targetDate = getTargetEvaluationDate();
             const today = new Date();
             const isToday = targetDate.getFullYear() === today.getFullYear() &&
                             targetDate.getMonth() === today.getMonth() &&
                             targetDate.getDate() === today.getDate();
 
+            const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
+            if (!timeMatch) return '#4ade80';
+
+            const stopTotalMins = parseInt(timeMatch[1], 10) * 60 + parseInt(timeMatch[2], 10);
+
+            if (!isToday) {
+                const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                const targetDateOnly = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+                if (targetDateOnly < todayDateOnly) {
+                    return '#ff4d4d'; // Missed past date
+                }
+                return '#4ade80'; // Future date
+            } else {
+                return (stopTotalMins < currentTotalMins) ? '#ff4d4d' : '#4ade80';
+            }
+        }
+
+        // Dynamically updates departure/arrival time colors in active route cards
+        function updateTripCardColors() {
+            const targetDate = getTargetEvaluationDate();
+            const tripItems = document.querySelectorAll('.route-trip-results li[data-dep]');
+            if (!tripItems || tripItems.length === 0) return;
+
+            tripItems.forEach(li => {
+                const depTime = li.getAttribute('data-dep');
+                const arrTime = li.getAttribute('data-arr');
+                const depColor = getTimeColor(depTime, targetDate);
+                const arrColor = getTimeColor(arrTime, targetDate);
+
+                const depWrap = li.querySelector('.trip-dep-wrap');
+                if (depWrap) depWrap.style.color = depColor;
+
+                const arrWrap = li.querySelector('.trip-arr-wrap');
+                if (arrWrap) arrWrap.style.color = arrColor;
+
+                // Adjust card item indicator border
+                const borderLeftColor = (arrColor === '#ff4d4d') ? '#ff4d4d' : ((depColor === '#ff4d4d') ? '#f59e0b' : '#4ade80');
+                li.style.borderLeftColor = borderLeftColor;
+            });
+        }
+
+        // Reliably updates text colors inside all active and newly opened popups & trip cards
+        function updateStopTextColors() {
+            const targetDate = getTargetEvaluationDate();
+
             // Support all active or transitioning popups in the DOM
             const popupContainers = document.querySelectorAll('.leaflet-popup-content');
-            if (!popupContainers || popupContainers.length === 0) return;
+            if (popupContainers && popupContainers.length > 0) {
+                popupContainers.forEach(popupContentContainer => {
+                    const stopListItems = popupContentContainer.querySelectorAll('.popup-times-list li');
+                    stopListItems.forEach(li => {
+                        const timeSpan = li.querySelector('.time-group');
+                        const textSpan = li.querySelector('.stop-name-text');
+                        if (!timeSpan || !textSpan) return;
 
-            popupContainers.forEach(popupContentContainer => {
-                const stopListItems = popupContentContainer.querySelectorAll('.popup-times-list li');
-                stopListItems.forEach(li => {
-                    const timeSpan = li.querySelector('.time-group');
-                    const textSpan = li.querySelector('.stop-name-text');
-                    if (!timeSpan || !textSpan) return;
-
-                    const timeStr = timeSpan.textContent.trim();
-                    const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
-                    if (!timeMatch) return;
-
-                    const stopTotalMins = parseInt(timeMatch[1], 10) * 60 + parseInt(timeMatch[2], 10);
-
-                    if (!isToday) {
-                        textSpan.style.color = '#4ade80';
-                    } else {
-                        if (stopTotalMins < currentTotalMins) {
-                            textSpan.style.color = '#ff4d4d';
-                        } else {
-                            textSpan.style.color = '#4ade80';
-                        }
-                    }
+                        const timeStr = timeSpan.textContent.trim();
+                        textSpan.style.color = getTimeColor(timeStr, targetDate);
+                    });
                 });
-            });
+            }
+
+            // Also refresh active route planner cards
+            updateTripCardColors();
         }
 
         // Global listener on Leaflet map to guarantee popup colors update when opened
@@ -931,7 +970,7 @@
             setTimeout(updateStopTextColors, 150);
         });
 
-        // Periodic color refresh to keep time states up-to-date
+        // Periodic color refresh to keep all time states up-to-date
         setInterval(updateStopTextColors, 30000);
 
         function getActiveRouteIds() {
@@ -1244,13 +1283,24 @@
 
                     if (validTrips.length > 0) {
                         validTrips.forEach(vt => {
-                            tripResultsHtml += `<li><span style="font-family:monospace; color:#4ade80; font-weight:bold;">Dep: ${vt.depTime} &rarr; Arr: ${vt.arrTime}</span></li>`;
+                            let depColor = getTimeColor(vt.depTime, targetDate);
+                            let arrColor = getTimeColor(vt.arrTime, targetDate);
+                            let borderLeftColor = (arrColor === '#ff4d4d') ? '#ff4d4d' : ((depColor === '#ff4d4d') ? '#f59e0b' : '#4ade80');
+
+                            tripResultsHtml += `
+                                <li data-dep="${vt.depTime}" data-arr="${vt.arrTime}" style="border-left-color: ${borderLeftColor};">
+                                    <span style="font-family: monospace; font-weight: bold; display: inline-flex; align-items: center; gap: 6px;">
+                                        <span class="trip-dep-wrap" style="color: ${depColor};">Dep: <span class="dep-time">${vt.depTime}</span></span>
+                                        <span style="color: #64748b;">&rarr;</span>
+                                        <span class="trip-arr-wrap" style="color: ${arrColor};">Arr: <span class="arr-time">${vt.arrTime}</span></span>
+                                    </span>
+                                </li>`;
                         });
                     } else {
-                        tripResultsHtml = `<li style="justify-content:center; color:#f43f5e;">No direct trips found between selected stops.</li>`;
+                        tripResultsHtml = `<li style="justify-content:center; color:#f43f5e; border-left-color:#f43f5e;">No direct trips found between selected stops.</li>`;
                     }
                 } else {
-                    tripResultsHtml = `<li style="justify-content:center; color:#94a3b8;">Select start and end stops above.</li>`;
+                    tripResultsHtml = `<li style="justify-content:center; color:#94a3b8; border-left-color:#64748b;">Select start and end stops above.</li>`;
                 }
 
                 let cardDiv = document.createElement('div');
