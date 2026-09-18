@@ -414,6 +414,7 @@
                 <p><strong>👆 Double-Tap & Drag Zoom:</strong> Double-tap with your finger and hold on the second tap, then slide down to zoom in or slide up to zoom out of the map smoothly.</p>
                 <p><strong>📍 Long-Press Map Location:</strong> Long-press anywhere on the map to automatically find and display the closest route and its nearby stops relative to that location.</p>
                 <p><strong><svg width="14" height="14" viewBox="0 0 24 24" fill="#4ade80" stroke="#0f172a" stroke-width="2" style="vertical-align: middle; margin-right: 2px;"><polygon points="12 2 19 21 12 17 5 21 12 2"></polygon></svg> Stop Markers & Directional Arrows:</strong> Bus stops are represented on the map as directional arrowhead icons. The tip of each arrow points in the exact direction the bus is traveling at that specific stop, helping you easily identify which side of the street or travel direction you are viewing. <em>Tap on any stop arrow to open its pop-up window and view the full text list of stops and times for that route.</em></p>
+                <p><strong>🔄 Tap-to-Cycle Shared Stop Routes:</strong> When multiple active routes share the same bus stop, tapping anywhere on the open pop-up card will sequentially cycle through each route's schedule and trip details, looping back to the first route.</p>
             </div>
             <div class="help-section">
                 <h3>Top Control Bar & Floating Menu</h3>
@@ -608,6 +609,11 @@
         let gtfsData = { routes: {}, rawRoutes: {}, trips: {}, stops: {}, stopTimes: {}, shapes: {}, calendar: {}, calendarDates: {} };
         let routePlanners = {}; // routeId -> { startStopId, endStopId, isCollapsed, selectedTripId }
         let availableRouteOptionsHtml = '<option value="">Select Route</option>';
+
+        let activeStopsMapGlobal = {};
+        let activeShapesMapGlobal = new Map();
+        let stopMarkersMap = {};
+        let stopPopupIndices = {};
 
         const vibrantRouteColors = ['#f43f5e', '#38bdf8', '#4ade80', '#f59e0b', '#a855f7', '#ec4899', '#14b8a6', '#84cc16', '#eab308', '#6366f1'];
         let routeColorMap = {};
@@ -1115,14 +1121,107 @@
             return activeRouteIds;
         }
 
+        function cycleStopPopup(stopId, event) {
+            if (event && event.target && event.target.closest('button, li, a, select')) {
+                return;
+            }
+            const routesAtStop = activeStopsMapGlobal[stopId];
+            if (!routesAtStop) return;
+            const routeIds = Object.keys(routesAtStop);
+            if (routeIds.length <= 1) return;
+
+            let curIdx = stopPopupIndices[stopId] || 0;
+            stopPopupIndices[stopId] = (curIdx + 1) % routeIds.length;
+
+            const marker = stopMarkersMap[stopId];
+            if (marker && marker.getPopup()) {
+                marker.setPopupContent(buildStopPopupContent(stopId));
+                updateStopTextColors();
+                setTimeout(updateStopTextColors, 20);
+            }
+        }
+
+        function buildStopPopupContent(stopId) {
+            let stopInfo = gtfsData.stops[stopId];
+            if (!stopInfo) return '';
+            let routesAtStop = activeStopsMapGlobal[stopId] || {};
+            let routeIds = Object.keys(routesAtStop);
+            if (routeIds.length === 0) return '';
+
+            let currentIndex = stopPopupIndices[stopId] || 0;
+            if (currentIndex >= routeIds.length) currentIndex = 0;
+            stopPopupIndices[stopId] = currentIndex;
+
+            let currentRouteId = routeIds[currentIndex];
+            let rColor = getRouteColor(currentRouteId);
+            let rawRouteObj = gtfsData.rawRoutes[currentRouteId] || {};
+            let rDisplayName = rawRouteObj.route_short_name ? `Route ${rawRouteObj.route_short_name}` : `Route`;
+            if (rawRouteObj.route_long_name) rDisplayName += `: ${rawRouteObj.route_long_name}`;
+
+            let tripEntriesArr = routesAtStop[currentRouteId] || [];
+            tripEntriesArr.sort((a, b) => a.sortTime.localeCompare(b.sortTime));
+
+            let tripsSnippet = '';
+            tripEntriesArr.forEach(item => {
+                let stopsSnippet = item.tripStops.map(ts => `
+                    <li onclick="event.stopPropagation(); jumpToStopLocation('${ts.stopId}', ${stopInfo.lat}, ${stopInfo.lng}, '${currentRouteId}')" title="${ts.fullName}">
+                        <span class="time-group" style="color: ${rColor};">${ts.time || ''}</span>
+                        <span class="stop-name-text">${ts.name}</span>
+                    </li>
+                `).join('');
+
+                tripsSnippet += `
+                    <div style="font-size:0.6rem; color:#cbd5e1; margin-top:4px; font-weight:bold; white-space:nowrap;">Trip @ ${item.sortTime} (Tap stop to locate):</div>
+                    <ul class="popup-times-list" style="margin-top:2px;">
+                        ${stopsSnippet}
+                    </ul>
+                `;
+            });
+
+            let schedulesHtml = `
+                <div class="popup-route-section" style="border-left: 3px solid ${rColor}; padding-left: 6px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                        <span class="popup-times-title" style="color: ${rColor};">${rDisplayName}</span>
+                        ${routeIds.length > 1 ? `<span style="font-size: 0.6rem; color: #38bdf8; font-weight: bold; background: #0f172a; border: 1px solid #334155; padding: 1px 4px; border-radius: 3px;" title="Tap card to cycle routes">${currentIndex + 1}/${routeIds.length} ↻</span>` : ''}
+                    </div>
+                    ${tripsSnippet}
+                </div>
+            `;
+
+            let mainStopRawName = stopInfo.name;
+            let cleanedMainStopName = cleanStopName(mainStopRawName, rawRouteObj.route_long_name || '');
+
+            return `
+                <div class="stop-popup-card" onclick="cycleStopPopup('${stopId}', event)" style="${routeIds.length > 1 ? 'cursor: pointer;' : ''}">
+                    <div class="popup-header-row">
+                        <span class="popup-stop-name" title="${mainStopRawName}">${cleanedMainStopName}</span>
+                        <div class="popup-stop-meta">Stop Code: ${stopInfo.code}</div>
+                    </div>
+                    <div class="popup-actions-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <div style="display: flex; gap: 3px;">
+                            <button class="btn-action" style="padding: 3px 8px;" onclick="event.stopPropagation(); setRoutePlannerStop('${currentRouteId}', '${stopId}', 'start')">📍</button>
+                            <button class="btn-action" style="padding: 3px 8px;" onclick="event.stopPropagation(); setRoutePlannerStop('${currentRouteId}', '${stopId}', 'end')">🏁</button>
+                        </div>
+                        <button class="btn-action" style="padding: 3px 8px;" onclick="event.stopPropagation(); openNextClosestRouteForStop('${stopId}')" title="Find Next Route Serving Stop">🔍</button>
+                    </div>
+                    <div class="popup-scroll-container">
+                        ${schedulesHtml}
+                    </div>
+                </div>
+            `;
+        }
+
         function redrawMapLayers(shouldCenter = false) {
             if (isInfinityMode) return;
 
             markersLayer.clearLayers();
             tempMarkerLayer.clearLayers();
+            stopMarkersMap = {};
 
             const activeRouteIds = getActiveRouteIds();
             if (activeRouteIds.length === 0) {
+                activeStopsMapGlobal = {};
+                activeShapesMapGlobal = new Map();
                 renderRoutePanels([]);
                 return;
             }
@@ -1179,6 +1278,9 @@
                 });
             });
 
+            activeStopsMapGlobal = activeStopsMap;
+            activeShapesMapGlobal = activeShapesMap;
+
             let routeBounds = L.latLngBounds([]);
 
             activeShapesMap.forEach((routeId, shapeId) => {
@@ -1215,65 +1317,7 @@
                         finalIconColor = getContrastColor(routeColor, 'end');
                     }
 
-                    let routesAtStop = activeStopsMap[stopId];
-                    let schedulesHtml = '';
-
-                    Object.keys(routesAtStop).forEach(rId => {
-                        let rColor = getRouteColor(rId);
-                        let rawRouteObj = gtfsData.rawRoutes[rId] || {};
-                        let rDisplayName = rawRouteObj.route_short_name ? `Route ${rawRouteObj.route_short_name}` : `Route`;
-                        if (rawRouteObj.route_long_name) rDisplayName += `: ${rawRouteObj.route_long_name}`;
-
-                        let tripEntriesArr = routesAtStop[rId];
-                        tripEntriesArr.sort((a, b) => a.sortTime.localeCompare(b.sortTime));
-
-                        let tripsSnippet = '';
-                        tripEntriesArr.forEach(item => {
-                            let stopsSnippet = item.tripStops.map(ts => `
-                                <li onclick="event.stopPropagation(); jumpToStopLocation('${ts.stopId}', ${stopInfo.lat}, ${stopInfo.lng})" title="${ts.fullName}">
-                                    <span class="time-group" style="color: ${rColor};">${ts.time || ''}</span>
-                                    <span class="stop-name-text">${ts.name}</span>
-                                </li>
-                            `).join('');
-
-                            tripsSnippet += `
-                                <div style="font-size:0.6rem; color:#cbd5e1; margin-top:4px; font-weight:bold; white-space:nowrap;">Trip @ ${item.sortTime} (Tap stop to locate):</div>
-                                <ul class="popup-times-list" style="margin-top:2px;">
-                                    ${stopsSnippet}
-                                </ul>
-                            `;
-                        });
-
-                        schedulesHtml += `
-                            <div class="popup-route-section" style="border-left: 3px solid ${rColor}; padding-left: 6px;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-                                    <span class="popup-times-title" style="color: ${rColor};">${rDisplayName}</span>
-                                </div>
-                                ${tripsSnippet}
-                            </div>
-                        `;
-                    });
-
-                    let mainStopRawName = stopInfo.name;
-                    let activeRouteObjSample = gtfsData.rawRoutes[matchInfo.matchedRouteId] || {};
-                    let cleanedMainStopName = cleanStopName(mainStopRawName, activeRouteObjSample.route_long_name || '');
-
-                    let popupContent = `
-                        <div class="popup-header-row">
-                            <span class="popup-stop-name" title="${mainStopRawName}">${cleanedMainStopName}</span>
-                            <div class="popup-stop-meta">Stop Code: ${stopInfo.code}</div>
-                        </div>
-                        <div class="popup-actions-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                            <div style="display: flex; gap: 3px;">
-                                <button class="btn-action" style="padding: 3px 8px;" onclick="setRoutePlannerStop('${matchInfo.matchedRouteId}', '${stopId}', 'start')">📍</button>
-                                <button class="btn-action" style="padding: 3px 8px;" onclick="setRoutePlannerStop('${matchInfo.matchedRouteId}', '${stopId}', 'end')">🏁</button>
-                            </div>
-                            <button class="btn-action" style="padding: 3px 8px;" onclick="openNextClosestRouteForStop('${stopId}')" title="Find Next Route Serving Stop">🔍</button>
-                        </div>
-                        <div class="popup-scroll-container">
-                            ${schedulesHtml}
-                        </div>
-                    `;
+                    let popupContent = buildStopPopupContent(stopId);
 
                     let svgArrowIcon = L.divIcon({
                         className: 'stop-svg-arrow',
@@ -1295,6 +1339,12 @@
                         setTimeout(updateStopTextColors, 150);
                     });
 
+                    marker.on('popupclose', () => {
+                        stopPopupIndices[stopId] = 0;
+                        marker.setPopupContent(buildStopPopupContent(stopId));
+                    });
+
+                    stopMarkersMap[stopId] = marker;
                     markersLayer.addLayer(marker);
                     routeBounds.extend([stopInfo.lat, stopInfo.lng]);
                 }
@@ -1983,9 +2033,19 @@
             }
         });
 
-        function jumpToStopLocation(targetStopId, origLat, origLng) {
+        function jumpToStopLocation(targetStopId, origLat, origLng, targetRouteId) {
             let stopInfo = gtfsData.stops[targetStopId];
             if (!stopInfo) return;
+
+            if (targetRouteId && activeStopsMapGlobal[targetStopId]) {
+                let rIds = Object.keys(activeStopsMapGlobal[targetStopId]);
+                let rIdx = rIds.indexOf(targetRouteId);
+                if (rIdx !== -1) {
+                    stopPopupIndices[targetStopId] = rIdx;
+                    let m = stopMarkersMap[targetStopId];
+                    if (m) m.setPopupContent(buildStopPopupContent(targetStopId));
+                }
+            }
 
             tempMarkerLayer.clearLayers();
 
