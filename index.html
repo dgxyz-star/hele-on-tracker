@@ -342,7 +342,7 @@
                 <p><strong>🔲 QR Code Button:</strong> Opens a share modal displaying a QR code and URL link to easily share this live app with others.</p>
                 <p><strong>📝 Notepad Icon:</strong> Opens this full-window guide and functionality overview.</p>
                 <p><strong>🎯 GPS Button:</strong> Centers and focuses the map on your current GPS location.</p>
-                <p><strong>∞ Infinity Route Exploration Button:</strong> Enters an exploration mode where all available transit routes are displayed as background lines across the map.</p>
+                <p><strong>∞ Infinity Route Exploration Button:</strong> Enters an exploration mode where all available transit routes are displayed across the map and automatically framed in view.</p>
                 <p><strong>🚏 Nearest Route Button:</strong> Finds the closest route and stop relative to your current location.</p>
                 <p><strong>➕ Add Route Button:</strong> Adds an extra route selection dropdown so you can view and compare multiple bus routes on the map simultaneously.</p>
                 <p><strong>📅 Calendar Icon:</strong> Tap to pick a specific schedule date.</p>
@@ -1365,6 +1365,7 @@
 
             const normalWeight = 4;
             const hitBoxMultiplier = 5;
+            let allBounds = L.latLngBounds([]);
 
             allRouteShapes.forEach((routeId, shapeId) => {
                 let points = gtfsData.shapes[shapeId];
@@ -1392,8 +1393,14 @@
 
                     let routeGroup = L.layerGroup([hitBoxLine, visibleLine]);
                     infinityLayerGroup.addLayer(routeGroup);
+                    allBounds.extend(visibleLine.getBounds());
                 }
             });
+
+            // Automatically center all the routes on the map view
+            if (allBounds.isValid()) {
+                map.fitBounds(allBounds, { padding: [50, 50] });
+            }
         }
 
         function saveInfinityRoute(routeId, visibleLine) {
