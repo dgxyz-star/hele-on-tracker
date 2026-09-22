@@ -39,10 +39,40 @@
             flex-shrink: 0;
         }
 
-        /* Calendar icon button wrapper */
-        .calendar-btn-wrapper { position: relative; }
-        .date-select { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
-        .calendar-icon { font-size: 0.8rem; color: #06b6d4; pointer-events: none; display: flex; align-items: center; justify-content: center; line-height: 1; }
+        /* Calendar icon button wrapper & dynamic date badge */
+        .calendar-btn-wrapper { position: relative; overflow: hidden; }
+        .date-select { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 2; }
+        .calendar-badge {
+            width: 22px;
+            height: 22px;
+            background: #0f172a;
+            border: 1px solid #0284c7;
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            pointer-events: none;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+        }
+        .calendar-badge-top {
+            width: 100%;
+            height: 6px;
+            background: #0284c7;
+            flex-shrink: 0;
+        }
+        .calendar-badge-day {
+            flex: 1;
+            font-size: 0.68rem;
+            font-weight: 800;
+            color: #38bdf8;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
 
         #route-rows-container { display: flex; flex-direction: column; gap: 4px; width: 100%; min-width: 0; }
         .controls-row { display: flex; gap: 4px; width: 100%; min-width: 0; align-items: center; }
@@ -86,12 +116,8 @@
             line-height: 1;
             flex-shrink: 0;
         }
-        .floating-left-container .calendar-icon {
-            font-size: 0.8rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            line-height: 1;
+        .floating-left-container .calendar-badge {
+            pointer-events: none;
         }
 
         /* Full Window Help Overlay Page */
@@ -249,8 +275,8 @@
         /* Clean Connection / Layover Summary Bar */
         .transfer-summary-bar {
             background: #1e293b;
-            border: 1px solid #0284c7;
-            border-left: 4px solid #38bdf8;
+            border: 1px solid #ca8a04;
+            border-left: 4px solid #eab308;
             border-radius: 6px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.5);
             padding: 6px 10px;
@@ -273,7 +299,7 @@
         .transfer-title {
             font-size: 0.7rem;
             font-weight: bold;
-            color: #38bdf8;
+            color: #eab308;
             display: flex;
             align-items: center;
             gap: 5px;
@@ -310,15 +336,30 @@
         .popup-header-row { margin-bottom: 4px; }
         .popup-stop-name { font-weight: bold; color: #06b6d4; font-size: 0.8rem; display: block; line-height: 1.1; }
         .popup-stop-meta { font-size: 0.65rem; color: #94a3b8; margin-bottom: 4px; }
+        .popup-route-cycler-bar { display: flex; justify-content: space-between; align-items: center; background: #0f172a; border: 1px solid #334155; border-radius: 4px; padding: 2px 6px; margin-bottom: 6px; }
+        .popup-route-cycler-title { font-size: 0.68rem; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 170px; }
+        .popup-route-stepper-btns { display: flex; gap: 3px; align-items: center; flex-shrink: 0; }
 
-        .popup-scroll-container { max-height: 240px; overflow-y: auto; overflow-x: auto; margin-top: 4px; padding-right: 4px; -webkit-overflow-scrolling: touch; }
-        .popup-route-section { margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #334155; }
+        .popup-scroll-container { max-height: 240px; overflow: auto; margin-top: 4px; padding-right: 4px; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }
+        .popup-scroll-container::-webkit-scrollbar { display: none; width: 0; height: 0; }
+        .popup-route-section { margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #334155; min-width: max-content; }
         .popup-route-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
 
         .popup-times-title { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; margin-bottom: 2px; font-weight: bold; white-space: nowrap; }
+        .popup-departures-list { list-style-type: none; padding-left: 0; display: flex; flex-direction: column; gap: 4px; margin-top: 4px; min-width: max-content; }
+        .popup-departure-card { background: #0f172a; border: 1px solid #334155; border-radius: 4px; padding: 6px 8px; display: flex; align-items: center; min-width: max-content; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+        .popup-departure-card:hover { background: #1e293b; border-color: #475569; }
+        .popup-departure-card.active-selected-trip { background: rgba(6, 182, 212, 0.12); border-color: #06b6d4; }
+        .popup-dep-main-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; white-space: nowrap; }
+        .popup-dep-time-headsign { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+        .popup-dep-headsign { font-size: 0.68rem; color: #cbd5e1; white-space: nowrap; }
+
+        .popup-itinerary-header { margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid #334155; }
+        .popup-itinerary-title { font-size: 0.7rem; font-weight: bold; color: #38bdf8; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .popup-times-list { list-style-type: none; padding-left: 0; min-width: max-content; }
         .popup-times-list li { background: #0f172a; padding: 4px 8px; margin-bottom: 2px; border-radius: 3px; font-size: 0.65rem; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: background 0.15s; white-space: nowrap; }
         .popup-times-list li:hover { background: #334155; }
+        .popup-times-list li.current-active-stop { background: rgba(56, 189, 248, 0.2); border-left: 3px solid #38bdf8; font-weight: bold; }
         .time-group { font-family: monospace; font-weight: bold; flex-shrink: 0; }
 
         .user-loc-dot { background: #06b6d4; border: 2px solid #ffffff; border-radius: 50%; box-shadow: 0 0 6px rgba(6, 182, 212, 0.8); }
@@ -330,8 +371,11 @@
     <div class="floating-left-container">
         <button class="action-top-btn" onclick="toggleQrModal()" title="Share QR Code">🔲</button>
         <div class="calendar-btn-wrapper" title="Select Date">
-            <select class="date-select" id="date-select-floating" onchange="syncDateSelects(this); redrawMapLayers(false)"></select>
-            <span class="calendar-icon">📅</span>
+            <select class="date-select" id="date-select-floating" onchange="syncDateSelects(this); redrawMapLayers(false);"></select>
+            <div class="calendar-badge">
+                <div class="calendar-badge-top"></div>
+                <div class="calendar-badge-day calendar-day-number">--</div>
+            </div>
         </div>
         <button class="action-top-btn" onclick="toggleHelpOverlay()" title="Guide & Help">📝</button>
     </div>
@@ -350,8 +394,11 @@
                 <div class="header-left-group">
                     <button class="action-top-btn" onclick="toggleQrModal()" title="Share QR Code">🔲</button>
                     <div class="calendar-btn-wrapper" title="Select Date">
-                        <select class="date-select" id="date-select-header" onchange="syncDateSelects(this); redrawMapLayers(false)"></select>
-                        <span class="calendar-icon">📅</span>
+                        <select class="date-select" id="date-select-header" onchange="syncDateSelects(this); redrawMapLayers(false);"></select>
+                        <div class="calendar-badge">
+                            <div class="calendar-badge-top"></div>
+                            <div class="calendar-badge-day calendar-day-number">--</div>
+                        </div>
                     </div>
                     <button class="action-top-btn" onclick="toggleHelpOverlay()" title="Guide & Help">📝</button>
                 </div>
@@ -399,7 +446,7 @@
                 <h3>Map Zooming & Gestures</h3>
                 <p><strong>👆 Double-Tap & Drag Zoom:</strong> Double-tap with your finger and hold on the second tap, then slide down to zoom in or slide up to zoom out of the map smoothly.</p>
                 <p><strong>📍 Long-Press Map Location:</strong> Long-press anywhere on the map to automatically find and display the closest route and its nearby stops relative to that location.</p>
-                <p><strong><svg width="14" height="14" viewBox="0 0 24 24" fill="#4ade80" stroke="#0f172a" stroke-width="2" style="vertical-align: middle; margin-right: 2px;"><polygon points="12 2 19 21 12 17 5 21 12 2"></polygon></svg> Stop Markers & Directional Arrows:</strong> Bus stops are represented on the map as directional arrowhead icons. The tip of each arrow points in the exact direction the bus is traveling at that specific stop, helping you easily identify which side of the street or travel direction you are viewing. <em>Tap on any stop arrow to open its pop-up window and view the full text list of stops and times for that route.</em></p>
+                <p><strong><svg width="14" height="14" viewBox="0 0 24 24" fill="#4ade80" stroke="#0f172a" stroke-width="2" style="vertical-align: middle; margin-right: 2px;"><polygon points="12 2 19 21 12 17 5 21 12 2"></polygon></svg> Stop Markers & Directional Arrows:</strong> Directional arrowhead markers indicate the bus travel direction (White = Start stop, Black = End stop, Gray = Transfer/Overlap stop). Tapping a stop marker on the map opens departures and cycles through all routes serving that stop. Tap 📋 in the top header to toggle full trip itineraries, ◀ to return to departures, and ↩ to return to the origin stop if inspecting remote itinerary stops.</p>
             </div>
             <div class="help-section">
                 <h3>Top Control Bar & Floating Menu</h3>
@@ -409,7 +456,7 @@
                 <p><strong>∞ Infinity Route Exploration Button:</strong> Enters an exploration mode displaying all available transit routes on the map. Tap individual routes to select them; once you tap any blank part of the map (not containing a route), your choices are saved, adding the selected routes to the drop-down menu and removing any unselected ones.</p>
                 <p><strong>🚏 Nearest Route Button:</strong> Finds the closest route and stop relative to your current location.</p>
                 <p><strong>➕ Add Route Button:</strong> Adds an extra route selection dropdown so you can view and compare multiple bus routes on the map simultaneously.</p>
-                <p><strong>📅 Calendar Icon:</strong> Tap to pick a specific schedule date.</p>
+                <p><strong>📅 Calendar Icon:</strong> Displays the currently selected numerical day of the month. Tap to choose a specific schedule date.</p>
                 <p><strong>▲ Toggle Header Button:</strong> Expands or collapses the top header panel to maximize map viewing space.</p>
             </div>
             <div class="help-section">
@@ -417,7 +464,7 @@
                 <p>When you select a route from the top dropdown, it displays cleanly on the map without cluttering your screen with extra panels.</p>
                 <ul>
                     <li><strong>Setting Start/End Stops:</strong> Tap any bus stop marker on the map and click the 📍 (Start) or 🏁 (End) buttons. Doing so automatically opens that route's bottom trip planner card.</li>
-                    <li><strong>🔀 Automatic Transfer / Layover Summary Bar:</strong> When you set up multiple sequential routes that connect at a common transfer stop, a compact summary bar is automatically inserted directly between the route cards. It displays the shared transfer stop name, Route 1 arrival time, Route 2 departure time, and calculated layover/wait duration. You can browse through connection pairs with the ◀ ▶ buttons or tap specific trips.</li>
+                    <li><strong>🔀 Automatic Transfer / Layover Summary Bar:</strong> When you set up multiple sequential routes that connect at a common transfer stop, a compact yellow summary bar is automatically inserted directly between the route cards. It displays the shared transfer stop name, Route 1 arrival time, Route 2 departure time, and calculated layover/wait duration. You can browse through connection pairs with the ◀ ▶ buttons or tap specific trips.</li>
                     <li><strong>🔍 Find Sequential Closest Routes:</strong> Tap the magnifying glass icon inside any stop marker's popup to display routes serving that stop. When you press it multiple times, it will initially display the next closest route to that stop and then sequential closest routes.</li>
                     <li><strong>Dual Selection Methods:</strong> Once a route card is open, you can either continue using the map popups or use the dropdown selectors inside the card to fine-tune your start and end stops.</li>
                     <li><strong>Dynamic Equal-Share Space & Scrolling:</strong> Multiple active route cards automatically resize to share available vertical screen space equally. Each card is independently scrollable so you can easily thumb through all matching scheduled trips.</li>
@@ -458,6 +505,18 @@
             });
         }
 
+        function updateCalendarDateDisplay(dateStr) {
+            let dayNum = '--';
+            if (dateStr && dateStr.length === 8) {
+                dayNum = String(parseInt(dateStr.substring(6, 8), 10));
+            } else {
+                dayNum = String(new Date().getDate());
+            }
+            document.querySelectorAll('.calendar-day-number').forEach(el => {
+                el.textContent = dayNum;
+            });
+        }
+
         function syncDateSelects(changedEl) {
             const val = changedEl.value;
             const dateSelects = document.querySelectorAll('.date-select');
@@ -466,6 +525,7 @@
                     ds.value = val;
                 }
             });
+            updateCalendarDateDisplay(val);
         }
 
         // Coordinates for Big Island of Hawaii Fallback
@@ -591,6 +651,9 @@
 
         let gtfsData = { routes: {}, rawRoutes: {}, trips: {}, stops: {}, stopTimes: {}, shapes: {}, calendar: {}, calendarDates: {} };
         let routePlanners = {}; // routeId -> { startStopId, endStopId, isCollapsed, selectedTripId }
+        let stopActiveRouteIndex = {}; // stopId -> active index in routes serving that stop
+        let stopSelectedTripId = {}; // stopId -> tripId
+        let inspectedOriginStop = null; // { stopId, lat, lng }
         let availableRouteOptionsHtml = '<option value="">Select Route</option>';
 
         const vibrantRouteColors = ['#f43f5e', '#38bdf8', '#4ade80', '#f59e0b', '#a855f7', '#ec4899', '#14b8a6', '#84cc16', '#eab308', '#6366f1'];
@@ -606,26 +669,7 @@
             return routeColorMap[routeId];
         }
 
-        function getContrastColor(hexColor, type) {
-            if (!hexColor || hexColor.charAt(0) !== '#') {
-                return type === 'start' ? '#00ffff' : '#ff00ff';
-            }
-            let r = parseInt(hexColor.substring(1, 3), 16);
-            let g = parseInt(hexColor.substring(3, 5), 16);
-            let b = parseInt(hexColor.substring(5, 7), 16);
 
-            let invR = 255 - r;
-            let invG = 255 - g;
-            let invB = 255 - b;
-
-            if (type === 'start') {
-                invG = Math.min(255, invG + 70);
-            } else {
-                invR = Math.min(255, invR + 70);
-            }
-
-            return "#" + ((1 << 24) + (invR << 16) + (invG << 8) + invB).toString(16).slice(1);
-        }
 
         function parseCSV(text) {
             let lines = text.trim().split(/\r\n|\n/);
@@ -810,6 +854,12 @@
                 ds.innerHTML = dateOptionsHtml;
             });
 
+            if (dateSelects.length > 0 && dateSelects[0].value) {
+                updateCalendarDateDisplay(dateSelects[0].value);
+            } else {
+                updateCalendarDateDisplay('');
+            }
+
             addRouteRow('', false);
         }
 
@@ -955,6 +1005,18 @@
             return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
         }
 
+        function formatTime12h(timeStr) {
+            if (!timeStr) return '';
+            let parts = timeStr.split(':');
+            if (parts.length < 2) return timeStr;
+            let h = parseInt(parts[0], 10);
+            let m = parts[1];
+            let ampm = h >= 12 && h < 24 ? 'PM' : 'AM';
+            let h12 = h % 12;
+            if (h12 === 0) h12 = 12;
+            return `${h12}:${m} ${ampm}`;
+        }
+
         function formatDuration(mins) {
             if (mins < 0) return `${mins}m`;
             let h = Math.floor(mins / 60);
@@ -1065,13 +1127,19 @@
             const popupContainers = document.querySelectorAll('.leaflet-popup-content');
             if (popupContainers && popupContainers.length > 0) {
                 popupContainers.forEach(popupContentContainer => {
+                    const departureTimes = popupContentContainer.querySelectorAll('.popup-departure-time');
+                    departureTimes.forEach(span => {
+                        const raw24 = span.getAttribute('data-time24');
+                        span.style.color = getTimeColor(raw24, targetDate);
+                    });
+
                     const stopListItems = popupContentContainer.querySelectorAll('.popup-times-list li');
                     stopListItems.forEach(li => {
                         const timeSpan = li.querySelector('.time-group');
                         const textSpan = li.querySelector('.stop-name-text');
                         if (!timeSpan || !textSpan) return;
 
-                        const timeStr = timeSpan.textContent.trim();
+                        const timeStr = timeSpan.getAttribute('data-time24') || timeSpan.textContent.trim();
                         textSpan.style.color = getTimeColor(timeStr, targetDate);
                     });
                 });
@@ -1151,7 +1219,9 @@
                                         });
 
                                         activeStopsMap[st.stop_id][routeId].push({
+                                            tripId: tripId,
                                             sortTime: localTime,
+                                            headsign: trip.headsign || '',
                                             localText: `${localLabel} ${localTime}`,
                                             tripStops: stopSequenceDetails
                                         });
@@ -1185,6 +1255,7 @@
                     let matchInfo = getClosestShapeMatch(stopInfo.lat, stopInfo.lng, activeShapesMap);
                     let routeColor = getRouteColor(matchInfo.matchedRouteId);
                     let finalIconColor = routeColor;
+                    let iconStrokeColor = '#0f172a';
 
                     let isStartForAny = false;
                     let isEndForAny = false;
@@ -1193,50 +1264,27 @@
                         if (routePlanners[rId]?.endStopId === stopId) isEndForAny = true;
                     });
 
-                    if (isStartForAny) {
-                        finalIconColor = getContrastColor(routeColor, 'start');
+                    let markerZIndex = 0;
+                    if (isStartForAny && isEndForAny) {
+                        finalIconColor = '#94a3b8'; // Overlap / Transfer Stop
+                        iconStrokeColor = '#0f172a';
+                        markerZIndex = 1000;
+                    } else if (isStartForAny) {
+                        finalIconColor = '#ffffff'; // Start Stop
+                        iconStrokeColor = '#0f172a';
+                        markerZIndex = 1000;
                     } else if (isEndForAny) {
-                        finalIconColor = getContrastColor(routeColor, 'end');
+                        finalIconColor = '#000000'; // End Stop
+                        iconStrokeColor = '#ffffff';
+                        markerZIndex = 1000;
                     }
 
                     let routesAtStop = activeStopsMap[stopId];
-                    let schedulesHtml = '';
+                    let servingRouteIds = Object.keys(routesAtStop);
 
-                    Object.keys(routesAtStop).forEach(rId => {
-                        let rColor = getRouteColor(rId);
-                        let rawRouteObj = gtfsData.rawRoutes[rId] || {};
-                        let rDisplayName = rawRouteObj.route_short_name ? `Route ${rawRouteObj.route_short_name}` : `Route`;
-                        if (rawRouteObj.route_long_name) rDisplayName += `: ${rawRouteObj.route_long_name}`;
-
-                        let tripEntriesArr = routesAtStop[rId];
-                        tripEntriesArr.sort((a, b) => a.sortTime.localeCompare(b.sortTime));
-
-                        let tripsSnippet = '';
-                        tripEntriesArr.forEach(item => {
-                            let stopsSnippet = item.tripStops.map(ts => `
-                                <li onclick="event.stopPropagation(); jumpToStopLocation('${ts.stopId}', ${stopInfo.lat}, ${stopInfo.lng})" title="${ts.fullName}">
-                                    <span class="time-group" style="color: ${rColor};">${ts.time || ''}</span>
-                                    <span class="stop-name-text">${ts.name}</span>
-                                </li>
-                            `).join('');
-
-                            tripsSnippet += `
-                                <div style="font-size:0.6rem; color:#cbd5e1; margin-top:4px; font-weight:bold; white-space:nowrap;">Trip @ ${item.sortTime} (Tap stop to locate):</div>
-                                <ul class="popup-times-list" style="margin-top:2px;">
-                                    ${stopsSnippet}
-                                </ul>
-                            `;
-                        });
-
-                        schedulesHtml += `
-                            <div class="popup-route-section" style="border-left: 3px solid ${rColor}; padding-left: 6px;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
-                                    <span class="popup-times-title" style="color: ${rColor};">${rDisplayName}</span>
-                                </div>
-                                ${tripsSnippet}
-                            </div>
-                        `;
-                    });
+                    if (stopActiveRouteIndex[stopId] === undefined || stopActiveRouteIndex[stopId] >= servingRouteIds.length) {
+                        stopActiveRouteIndex[stopId] = 0;
+                    }
 
                     let mainStopRawName = stopInfo.name;
                     let activeRouteObjSample = gtfsData.rawRoutes[matchInfo.matchedRouteId] || {};
@@ -1247,22 +1295,15 @@
                             <span class="popup-stop-name" title="${mainStopRawName}">${cleanedMainStopName}</span>
                             <div class="popup-stop-meta">Stop Code: ${stopInfo.code}</div>
                         </div>
-                        <div class="popup-actions-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                            <div style="display: flex; gap: 3px;">
-                                <button class="btn-action" style="padding: 3px 8px;" onclick="setRoutePlannerStop('${matchInfo.matchedRouteId}', '${stopId}', 'start')">📍</button>
-                                <button class="btn-action" style="padding: 3px 8px;" onclick="setRoutePlannerStop('${matchInfo.matchedRouteId}', '${stopId}', 'end')">🏁</button>
-                            </div>
-                            <button class="btn-action" style="padding: 3px 8px;" onclick="openNextClosestRouteForStop('${stopId}')" title="Find Next Route Serving Stop">🔍</button>
-                        </div>
-                        <div class="popup-scroll-container">
-                            ${schedulesHtml}
+                        <div id="popup-main-body-${stopId}">
+                            ${buildDeparturesViewHtml(stopId)}
                         </div>
                     `;
 
                     let svgArrowIcon = L.divIcon({
                         className: 'stop-svg-arrow',
                         html: `<div style="transform: rotate(${matchInfo.bearing}deg); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0px 0px 3px rgba(0,0,0,0.8));">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="${finalIconColor}" stroke="#0f172a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="${finalIconColor}" stroke="${iconStrokeColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <polygon points="12 2 19 21 12 17 5 21 12 2"></polygon>
                             </svg>
                         </div>`,
@@ -1271,7 +1312,14 @@
                         popupAnchor: [0, -10]
                     });
 
-                    let marker = L.marker([stopInfo.lat, stopInfo.lng], { icon: svgArrowIcon }).bindPopup(popupContent);
+                    let marker = L.marker([stopInfo.lat, stopInfo.lng], { icon: svgArrowIcon, zIndexOffset: markerZIndex }).bindPopup(popupContent);
+
+                    marker.on('click', (e) => {
+                        let popup = marker.getPopup();
+                        if (popup && popup.isOpen() && servingRouteIds.length > 1) {
+                            cycleStopRoute(stopId, 1);
+                        }
+                    });
 
                     marker.on('popupopen', () => {
                         updateStopTextColors();
@@ -1967,9 +2015,283 @@
             }
         });
 
+        function showPopupItinerary(currentStopId, routeId, tripId) {
+            const mainBody = document.getElementById(`popup-main-body-${currentStopId}`);
+            if (!mainBody) return;
+
+            if (!tripId) {
+                let activeStopsMap = getServingRoutesForStop(currentStopId);
+                let tripEntriesArr = activeStopsMap[routeId] || [];
+                if (tripEntriesArr.length > 0) {
+                    tripEntriesArr.sort((a, b) => a.sortTime.localeCompare(b.sortTime));
+                    tripId = stopSelectedTripId[currentStopId] || tripEntriesArr[0].tripId;
+                }
+            }
+
+            let trip = gtfsData.trips[tripId];
+            if (!trip) return;
+
+            stopSelectedTripId[currentStopId] = tripId;
+
+            let tripStops = gtfsData.stopTimes[tripId] || [];
+            let rawRouteObj = gtfsData.rawRoutes[routeId] || {};
+            let rColor = getRouteColor(routeId);
+
+            let stopsSnippet = tripStops.map(tStop => {
+                let sMeta = gtfsData.stops[tStop.stop_id];
+                let rawName = sMeta ? sMeta.name : 'Unknown Stop';
+                let cleanName = cleanStopName(rawName, rawRouteObj.route_long_name || '');
+                let stopTime24 = tStop.dep || tStop.arr || '';
+                let formattedTime = formatTime12h(stopTime24);
+                let isCurrentStop = (tStop.stop_id === currentStopId);
+                let currentLat = sMeta ? sMeta.lat : 0;
+                let currentLng = sMeta ? sMeta.lng : 0;
+
+                return `
+                    <li class="${isCurrentStop ? 'current-active-stop' : ''}" onclick="event.stopPropagation(); jumpToStopLocation('${tStop.stop_id}', ${currentLat}, ${currentLng})" title="${rawName}">
+                        <span class="time-group" data-time24="${stopTime24}" style="color: ${rColor};">${formattedTime}</span>
+                        <span class="stop-name-text">${cleanName}${isCurrentStop ? ' 📍 (Current)' : ''}</span>
+                    </li>
+                `;
+            }).join('');
+
+            let destHeadsign = trip.headsign ? `➔ To ${trip.headsign}` : 'Full Itinerary';
+
+            let returnOriginBtn = (inspectedOriginStop && inspectedOriginStop.stopId !== currentStopId) ? `
+                <button class="btn-action" style="padding: 3px 8px;" onclick="event.stopPropagation(); returnToOriginStop()" title="Return to origin stop">↩</button>
+            ` : '';
+
+            mainBody.innerHTML = `
+                <div class="popup-actions-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <div style="display: flex; gap: 3px; align-items: center;">
+                        <button class="btn-action" style="padding: 3px 8px;" onclick="setRoutePlannerStop('${routeId}', '${currentStopId}', 'start')">📍</button>
+                        <button class="btn-action" style="padding: 3px 8px;" onclick="setRoutePlannerStop('${routeId}', '${currentStopId}', 'end')">🏁</button>
+                        ${returnOriginBtn}
+                    </div>
+                    <div style="display: flex; gap: 3px; align-items: center;">
+                        <button class="btn-action" style="padding: 3px 8px;" onclick="event.stopPropagation(); returnToPopupDepartures('${currentStopId}')" title="Back to Departures">◀</button>
+                        <button class="btn-action" style="padding: 3px 8px;" onclick="openNextClosestRouteForStop('${currentStopId}')" title="Find Next Route Serving Stop">🔍</button>
+                    </div>
+                </div>
+                <div class="popup-itinerary-header">
+                    <span class="popup-itinerary-title">${destHeadsign}</span>
+                </div>
+                <div id="popup-content-view-${currentStopId}" class="popup-scroll-container">
+                    <div style="font-size:0.6rem; color:#94a3b8; margin-bottom:4px;">Tap any stop below to view on map:</div>
+                    <ul class="popup-times-list">
+                        ${stopsSnippet}
+                    </ul>
+                </div>
+            `;
+
+            updateStopTextColors();
+        }
+
+        function getServingRoutesForStop(stopId) {
+            const activeRouteIds = getActiveRouteIds();
+            const targetDate = getTargetEvaluationDate();
+            let activeStopsMap = {};
+
+            activeRouteIds.forEach(routeId => {
+                let routeObj = gtfsData.rawRoutes[routeId] || {};
+                let longName = routeObj.route_long_name || '';
+
+                Object.keys(gtfsData.trips).forEach(tripId => {
+                    let trip = gtfsData.trips[tripId];
+                    if (trip.route_id === routeId && isServiceActive(trip.service_id, targetDate)) {
+                        let tripStops = gtfsData.stopTimes[tripId];
+                        if (tripStops && tripStops.length > 0) {
+                            tripStops.forEach(st => {
+                                if (st.stop_id === stopId) {
+                                    if (!activeStopsMap[routeId]) {
+                                        activeStopsMap[routeId] = [];
+                                    }
+                                    let localTime = st.dep || st.arr;
+                                    let localLabel = st.dep ? 'D' : 'A';
+                                    if (localTime) {
+                                        let stopSequenceDetails = tripStops.map(tStop => {
+                                            let sMeta = gtfsData.stops[tStop.stop_id];
+                                            let rawName = sMeta ? sMeta.name : 'Unknown Stop';
+                                            return {
+                                                stopId: tStop.stop_id,
+                                                name: cleanStopName(rawName, longName),
+                                                fullName: rawName,
+                                                time: tStop.dep || tStop.arr
+                                            };
+                                        });
+
+                                        activeStopsMap[routeId].push({
+                                            tripId: tripId,
+                                            sortTime: localTime,
+                                            headsign: trip.headsign || '',
+                                            localText: `${localLabel} ${localTime}`,
+                                            tripStops: stopSequenceDetails
+                                        });
+                                    }
+                                }
+                            });
+                        }
+                    }
+                });
+            });
+
+            return activeStopsMap;
+        }
+
+        function buildDeparturesViewHtml(stopId) {
+            let activeStopsMap = getServingRoutesForStop(stopId);
+            let servingRouteIds = Object.keys(activeStopsMap);
+
+            if (servingRouteIds.length === 0) {
+                return '<div style="color: #94a3b8; font-size: 0.7rem; padding: 4px;">No active departures scheduled for this date.</div>';
+            }
+
+            if (stopActiveRouteIndex[stopId] === undefined || stopActiveRouteIndex[stopId] >= servingRouteIds.length) {
+                stopActiveRouteIndex[stopId] = 0;
+            }
+
+            let curRouteIdx = stopActiveRouteIndex[stopId];
+            let activeRouteId = servingRouteIds[curRouteIdx];
+            let rColor = getRouteColor(activeRouteId);
+            let rawRouteObj = gtfsData.rawRoutes[activeRouteId] || {};
+            let rDisplayName = rawRouteObj.route_short_name ? `Route ${rawRouteObj.route_short_name}` : `Route`;
+            if (rawRouteObj.route_long_name) rDisplayName += `: ${rawRouteObj.route_long_name}`;
+
+            let tripEntriesArr = activeStopsMap[activeRouteId] || [];
+            tripEntriesArr.sort((a, b) => a.sortTime.localeCompare(b.sortTime));
+
+            if (!stopSelectedTripId[stopId] || !tripEntriesArr.some(t => t.tripId === stopSelectedTripId[stopId])) {
+                stopSelectedTripId[stopId] = tripEntriesArr.length > 0 ? tripEntriesArr[0].tripId : null;
+            }
+
+            let departuresSnippet = '';
+            tripEntriesArr.forEach(item => {
+                let destHeadsign = item.headsign ? `➔ To ${item.headsign}` : '';
+                let formattedDepTime = formatTime12h(item.sortTime);
+                let isSelectedTrip = (stopSelectedTripId[stopId] === item.tripId);
+
+                departuresSnippet += `
+                    <div class="popup-departure-card ${isSelectedTrip ? 'active-selected-trip' : ''}" onclick="selectPopupDepartureTrip('${stopId}', '${activeRouteId}', '${item.tripId}')">
+                        <div class="popup-dep-main-row">
+                            <div class="popup-dep-time-headsign">
+                                <span class="popup-departure-time" data-time24="${item.sortTime}" style="font-family: monospace; font-weight: bold; font-size: 0.72rem; color: #4ade80;">${formattedDepTime}</span>
+                                <span class="popup-dep-headsign" title="${item.headsign}">${destHeadsign}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            let cyclerBarHtml = '';
+            if (servingRouteIds.length > 1) {
+                cyclerBarHtml = `
+                    <div class="popup-route-cycler-bar">
+                        <span class="popup-route-cycler-title" style="color: ${rColor};" title="${rDisplayName}">${rDisplayName} (${curRouteIdx + 1} of ${servingRouteIds.length})</span>
+                        <div class="popup-route-stepper-btns">
+                            <button class="btn-action" style="padding: 2px 6px; font-size: 0.6rem;" onclick="event.stopPropagation(); cycleStopRoute('${stopId}', -1)" title="Previous Route">◀</button>
+                            <button class="btn-action" style="padding: 2px 6px; font-size: 0.6rem;" onclick="event.stopPropagation(); cycleStopRoute('${stopId}', 1)" title="Next Route">▶</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            let returnOriginBtn = (inspectedOriginStop && inspectedOriginStop.stopId !== stopId) ? `
+                <button class="btn-action" style="padding: 3px 8px;" onclick="event.stopPropagation(); returnToOriginStop()" title="Return to origin stop">↩</button>
+            ` : '';
+
+            let hasTrips = tripEntriesArr.length > 0;
+
+            return `
+                <div class="popup-actions-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <div style="display: flex; gap: 3px; align-items: center;">
+                        <button class="btn-action" style="padding: 3px 8px;" onclick="setRoutePlannerStop('${activeRouteId}', '${stopId}', 'start')">📍</button>
+                        <button class="btn-action" style="padding: 3px 8px;" onclick="setRoutePlannerStop('${activeRouteId}', '${stopId}', 'end')">🏁</button>
+                        ${returnOriginBtn}
+                    </div>
+                    <div style="display: flex; gap: 3px; align-items: center;">
+                        <button class="btn-action" style="padding: 3px 8px;" onclick="event.stopPropagation(); showPopupItinerary('${stopId}', '${activeRouteId}', '${stopSelectedTripId[stopId] || ''}')" title="View Itinerary" ${hasTrips ? '' : 'disabled style="opacity:0.4;"'}>📋</button>
+                        <button class="btn-action" style="padding: 3px 8px;" onclick="openNextClosestRouteForStop('${stopId}')" title="Find Next Route Serving Stop">🔍</button>
+                    </div>
+                </div>
+                ${cyclerBarHtml}
+                <div id="popup-content-view-${stopId}" class="popup-scroll-container">
+                    <div class="popup-route-section" style="border-left: 3px solid ${rColor}; padding-left: 6px;">
+                        ${servingRouteIds.length === 1 ? `
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2px;">
+                                <span class="popup-times-title" style="color: ${rColor};">${rDisplayName}</span>
+                            </div>
+                        ` : ''}
+                        <div class="popup-departures-list">
+                            ${departuresSnippet}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function selectPopupDepartureTrip(stopId, routeId, tripId) {
+            stopSelectedTripId[stopId] = tripId;
+            const mainBody = document.getElementById(`popup-main-body-${stopId}`);
+            if (mainBody) {
+                mainBody.innerHTML = buildDeparturesViewHtml(stopId);
+                updateStopTextColors();
+            }
+        }
+
+        function cycleStopRoute(stopId, delta) {
+            let activeStopsMap = getServingRoutesForStop(stopId);
+            let servingRouteIds = Object.keys(activeStopsMap);
+            if (servingRouteIds.length <= 1) return;
+
+            let curIdx = stopActiveRouteIndex[stopId] || 0;
+            curIdx = (curIdx + delta + servingRouteIds.length) % servingRouteIds.length;
+            stopActiveRouteIndex[stopId] = curIdx;
+
+            let newRouteId = servingRouteIds[curIdx];
+            let newTrips = activeStopsMap[newRouteId] || [];
+            stopSelectedTripId[stopId] = newTrips.length > 0 ? newTrips[0].tripId : null;
+
+            const mainBody = document.getElementById(`popup-main-body-${stopId}`);
+            if (mainBody) {
+                mainBody.innerHTML = buildDeparturesViewHtml(stopId);
+                updateStopTextColors();
+            }
+        }
+
+        function returnToPopupDepartures(stopId) {
+            const mainBody = document.getElementById(`popup-main-body-${stopId}`);
+            if (mainBody) {
+                mainBody.innerHTML = buildDeparturesViewHtml(stopId);
+                updateStopTextColors();
+            }
+        }
+
         function jumpToStopLocation(targetStopId, origLat, origLng) {
             let stopInfo = gtfsData.stops[targetStopId];
             if (!stopInfo) return;
+
+            // Remember inspected origin stop if moving away from it
+            let currentOpenStopId = null;
+            markersLayer.eachLayer(layer => {
+                if (layer instanceof L.Marker && layer.getPopup() && layer.getPopup().isOpen()) {
+                    let ll = layer.getLatLng();
+                    Object.keys(gtfsData.stops).forEach(sId => {
+                        let st = gtfsData.stops[sId];
+                        if (Math.abs(st.lat - ll.lat) < 0.00001 && Math.abs(st.lng - ll.lng) < 0.00001) {
+                            currentOpenStopId = sId;
+                        }
+                    });
+                }
+            });
+
+            if (currentOpenStopId && currentOpenStopId !== targetStopId) {
+                let origStopInfo = gtfsData.stops[currentOpenStopId];
+                inspectedOriginStop = {
+                    stopId: currentOpenStopId,
+                    lat: origStopInfo ? origStopInfo.lat : origLat,
+                    lng: origStopInfo ? origStopInfo.lng : origLng
+                };
+            }
 
             tempMarkerLayer.clearLayers();
 
@@ -1986,6 +2308,29 @@
                 if (layer instanceof L.Marker) {
                     let ll = layer.getLatLng();
                     if (Math.abs(ll.lat - stopInfo.lat) < 0.00001 && Math.abs(ll.lng - stopInfo.lng) < 0.00001) {
+                        layer.openPopup();
+                    }
+                }
+            });
+
+            updateStopTextColors();
+            setTimeout(updateStopTextColors, 50);
+            setTimeout(updateStopTextColors, 150);
+            setTimeout(updateStopTextColors, 300);
+        }
+
+        function returnToOriginStop() {
+            if (!inspectedOriginStop) return;
+            let orig = inspectedOriginStop;
+            inspectedOriginStop = null;
+            tempMarkerLayer.clearLayers();
+
+            map.setView([orig.lat, orig.lng], 16);
+
+            markersLayer.eachLayer(layer => {
+                if (layer instanceof L.Marker) {
+                    let ll = layer.getLatLng();
+                    if (Math.abs(ll.lat - orig.lat) < 0.00001 && Math.abs(ll.lng - orig.lng) < 0.00001) {
                         layer.openPopup();
                     }
                 }
