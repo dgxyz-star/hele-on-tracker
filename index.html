@@ -430,7 +430,15 @@
                 <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https://dgxyz-star.github.io/hele-on-tracker/" alt="App QR Code" style="width: 160px; height: 160px; display: block;">
             </div>
             <p style="font-size: 0.75rem; color: #cbd5e1; text-align: center; margin-bottom: 12px; word-break: break-all;">Scan QR code to open live app:<br><a href="https://dgxyz-star.github.io/hele-on-tracker/" target="_blank" style="color: #38bdf8; text-decoration: none;">https://dgxyz-star.github.io/hele-on-tracker/</a></p>
-            <button class="btn-action" style="width: 100%; padding: 6px; justify-content: center;" onclick="copyAppUrl()">Copy Link</button>
+            <button class="btn-action" style="width: 100%; padding: 6px; justify-content: center; margin-bottom: 12px;" onclick="copyAppUrl()">Copy Link</button>
+            <div style="width: 100%; border-top: 1px solid #334155; padding-top: 10px; display: flex; flex-direction: column; align-items: center; gap: 6px;">
+                <span style="font-size: 0.72rem; color: #94a3b8; font-weight: bold;">Feedback & Support</span>
+                <span style="font-size: 0.75rem; color: #38bdf8; font-family: monospace;">dgxyz.star@gmail.com</span>
+                <div style="display: flex; gap: 6px; width: 100%; margin-top: 2px;">
+                    <a href="mailto:dgxyz.star@gmail.com" class="btn-action" style="flex: 1; padding: 6px; justify-content: center; text-decoration: none; color: #06b6d4;">✉️ Email</a>
+                    <button class="btn-action" style="flex: 1; padding: 6px; justify-content: center;" onclick="copyEmailAddress()">📋 Copy</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -457,7 +465,7 @@
             </div>
             <div class="help-section">
                 <h3>Top Control Bar & Floating Menu</h3>
-                <p><strong>🔲 QR Code Button:</strong> Opens a share modal displaying a QR code and URL link to easily share this live app with others.</p>
+                <p><strong>🔲 QR Code Button:</strong> Opens a share modal displaying a QR code, live link, and developer contact email (dgxyz.star@gmail.com) for support and feedback.</p>
                 <p><strong>📝 Notepad Icon:</strong> Opens this full-window guide and functionality overview.</p>
                 <p><strong>🎯 GPS Button:</strong> Centers and focuses the map on your current GPS location.</p>
                 <p><strong>∞ Infinity Route Exploration Button:</strong> Enters an exploration mode displaying all available transit routes on the map. Tap individual routes to select them; once you tap any blank part of the map (not containing a route), your choices are saved, adding the selected routes to the drop-down menu and removing any unselected ones.</p>
@@ -509,6 +517,15 @@
                 alert("App URL copied to clipboard!");
             }).catch(err => {
                 console.error("Failed to copy URL:", err);
+            });
+        }
+
+        function copyEmailAddress() {
+            const email = "dgxyz.star@gmail.com";
+            navigator.clipboard.writeText(email).then(() => {
+                alert("Email address copied to clipboard!");
+            }).catch(err => {
+                console.error("Failed to copy email:", err);
             });
         }
 
