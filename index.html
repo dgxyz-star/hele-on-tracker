@@ -353,8 +353,6 @@
         .popup-itinerary-header { margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px solid #334155; display: flex; flex-direction: column; gap: 3px; }
         .popup-itinerary-title-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
         .popup-itinerary-title { font-size: 0.7rem; font-weight: bold; color: #38bdf8; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .popup-itinerary-badges { display: flex; align-items: center; gap: 4px; font-size: 0.62rem; color: #94a3b8; font-weight: normal; }
-        .popup-itinerary-badge { background: #0f172a; border: 1px solid #334155; border-radius: 3px; padding: 1px 4px; color: #cbd5e1; font-family: monospace; }
         .popup-times-list { list-style-type: none; padding-left: 0; min-width: max-content; }
         .popup-times-list li { background: #0f172a; padding: 4px 8px; margin-bottom: 2px; border-radius: 3px; font-size: 0.65rem; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: background 0.15s; white-space: nowrap; }
         .popup-times-list li:hover { background: #334155; }
@@ -460,7 +458,7 @@
                 <h3>Map Zooming & Gestures</h3>
                 <p><strong>👆 Double-Tap & Drag Zoom:</strong> Double-tap with your finger and hold on the second tap, then slide down to zoom in or slide up to zoom out of the map smoothly.</p>
                 <p><strong>📍 Long-Press Map Location:</strong> Long-press anywhere on the map to automatically find and display the closest route and its nearby stops relative to that location.</p>
-                <p><strong><svg width="14" height="14" viewBox="0 0 24 24" fill="#4ade80" stroke="#0f172a" stroke-width="2" style="vertical-align: middle; margin-right: 2px;"><polygon points="12 2 19 21 12 17 5 21 12 2"></polygon></svg> Stop Markers & Directional Arrows:</strong> Directional arrowhead markers indicate the bus travel direction (White = Start stop, Black = End stop, Gray = Multi-Route Overlap / Transfer stop). For any stop shared by multiple active routes, ◀ and ▶ route cycler steppers are embedded directly in the route title banner row, and tapping the marker on the map directly advances through each serving route in a continuous loop. The route title and departures list scroll both vertically and horizontally so long route and stop names can be read in full. Tap 📋 in the popup top action row to toggle full trip itineraries, ◀ to return to departures, and ↩ to return to origin if inspecting remote stops.</p>
+                <p><strong><svg width="14" height="14" viewBox="0 0 24 24" fill="#4ade80" stroke="#0f172a" stroke-width="2" style="vertical-align: middle; margin-right: 2px;"><polygon points="12 2 19 21 12 17 5 21 12 2"></polygon></svg> Stop Markers & Directional Arrows:</strong> Directional arrowhead markers indicate the bus travel direction (White = Start stop, Black = End stop, Gray = Multi-Route Overlap / Transfer stop). In departure popups, ◀ ▶ steppers cycle through different serving routes. In itinerary popups (📋), ◀ ▶ directional steppers let you cycle through all available trip directions for that route. Tap ◀ to return to departures and ↩ to return to the origin stop if inspecting remote stops.</p>
                 <p><strong>🎯 Map Focus & Extent Controls:</strong> When a route's Start or End stops are selected, contextual navigation buttons appear in the popup top action row: tap the <svg width="12" height="12" viewBox="0 0 24 24" fill="#ffffff" stroke="#0f172a" stroke-width="2" style="vertical-align: middle;"><polygon points="12 2 19 21 12 17 5 21 12 2"></polygon></svg> White Arrow button to center on the Start stop, the <svg width="12" height="12" viewBox="0 0 24 24" fill="#000000" stroke="#ffffff" stroke-width="2" style="vertical-align: middle;"><polygon points="12 2 19 21 12 17 5 21 12 2"></polygon></svg> Black Arrow button to center on the End stop, or the ☯ Yin-Yang button to automatically fit and show both Start and End stops together on screen.</p>
             </div>
             <div class="help-section">
@@ -2252,17 +2250,29 @@
             }
         }
 
+        function cyclePopupItineraryTrip(stopId, routeId, delta, targetRowId = null) {
+            let servingData = getServingRouteInstancesForStop(stopId);
+            let tripEntriesArr = servingData.stopsMap[routeId] || [];
+            if (tripEntriesArr.length <= 1) return;
+            tripEntriesArr.sort((a, b) => a.sortTime.localeCompare(b.sortTime));
+            let curTripId = stopSelectedTripId[stopId] || tripEntriesArr[0].tripId;
+            let curIdx = tripEntriesArr.findIndex(t => t.tripId === curTripId);
+            if (curIdx === -1) curIdx = 0;
+            let nextIdx = (curIdx + delta + tripEntriesArr.length) % tripEntriesArr.length;
+            let nextTripId = tripEntriesArr[nextIdx].tripId;
+            showPopupItinerary(stopId, routeId, nextTripId, targetRowId);
+        }
+
         function showPopupItinerary(currentStopId, routeId, tripId, targetRowId = null) {
             const mainBody = document.getElementById(`popup-main-body-${currentStopId}`);
             if (!mainBody) return;
 
-            if (!tripId) {
-                let servingData = getServingRouteInstancesForStop(currentStopId);
-                let tripEntriesArr = servingData.stopsMap[routeId] || [];
-                if (tripEntriesArr.length > 0) {
-                    tripEntriesArr.sort((a, b) => a.sortTime.localeCompare(b.sortTime));
-                    tripId = stopSelectedTripId[currentStopId] || tripEntriesArr[0].tripId;
-                }
+            let servingData = getServingRouteInstancesForStop(currentStopId);
+            let tripEntriesArr = servingData.stopsMap[routeId] || [];
+            tripEntriesArr.sort((a, b) => a.sortTime.localeCompare(b.sortTime));
+
+            if (!tripId && tripEntriesArr.length > 0) {
+                tripId = stopSelectedTripId[currentStopId] || tripEntriesArr[0].tripId;
             }
 
             let trip = gtfsData.trips[tripId];
@@ -2276,19 +2286,6 @@
             let activeRouteRows = getActiveRouteRows();
             let matchedRow = activeRouteRows.find(r => r.rowId === targetRowId) || activeRouteRows.find(r => r.routeId === routeId);
             let rDisplayName = getRouteDisplayName(routeId, matchedRow ? matchedRow.instanceNum : null);
-
-            let totalStopsCount = tripStops.length;
-            let durationBadgeHtml = '';
-            if (tripStops.length >= 2) {
-                let firstTime = tripStops[0].dep || tripStops[0].arr;
-                let lastTime = tripStops[tripStops.length - 1].arr || tripStops[tripStops.length - 1].dep;
-                if (firstTime && lastTime) {
-                    let totalTripMins = timeToMins(lastTime) - timeToMins(firstTime);
-                    if (totalTripMins > 0) {
-                        durationBadgeHtml = `<span class="popup-itinerary-badge" title="Total Trip Duration">⏱️ ${formatDuration(totalTripMins)}</span>`;
-                    }
-                }
-            }
 
             let stopsSnippet = tripStops.map(tStop => {
                 let sMeta = gtfsData.stops[tStop.stop_id];
@@ -2336,6 +2333,19 @@
                 <button class="btn-action" style="padding: 3px 6px;" onclick="event.stopPropagation(); fitPlannerBounds('${routeId}', ${rowParam})" title="Fit Start & End on Map"><svg width="14" height="14" viewBox="0 0 24 24" stroke="#0f172a" stroke-width="1.5"><circle cx="12" cy="12" r="10" fill="#0f172a" stroke="#ffffff" stroke-width="1.5"/><path d="M12 2a10 10 0 0 1 0 20 5 5 0 0 1 0-10 5 5 0 0 0 0-10z" fill="#ffffff"/><circle cx="12" cy="7" r="1.5" fill="#0f172a"/><circle cx="12" cy="17" r="1.5" fill="#ffffff"/></svg></button>
             ` : '';
 
+            let tripCyclerNavBtns = '';
+            if (tripEntriesArr.length > 1) {
+                let curIdx = tripEntriesArr.findIndex(t => t.tripId === tripId);
+                if (curIdx === -1) curIdx = 0;
+                tripCyclerNavBtns = `
+                    <div style="display: flex; gap: 2px; align-items: center; flex-shrink: 0;">
+                        <button class="btn-action" style="padding: 2px 6px; font-size: 0.6rem;" onclick="event.stopPropagation(); cyclePopupItineraryTrip('${currentStopId}', '${routeId}', -1, ${rowParam})" title="Previous Direction / Trip">◀</button>
+                        <span style="font-size: 0.6rem; color: #94a3b8; font-family: monospace;">${curIdx + 1}/${tripEntriesArr.length}</span>
+                        <button class="btn-action" style="padding: 2px 6px; font-size: 0.6rem;" onclick="event.stopPropagation(); cyclePopupItineraryTrip('${currentStopId}', '${routeId}', 1, ${rowParam})" title="Next Direction / Trip">▶</button>
+                    </div>
+                `;
+            }
+
             mainBody.innerHTML = `
                 <div class="popup-actions-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                     <div style="display: flex; gap: 3px; align-items: center;">
@@ -2356,11 +2366,8 @@
                         <span class="popup-itinerary-title" style="color: ${rColor};" title="${rDisplayName}">${rDisplayName}</span>
                     </div>
                     <div style="display: flex; justify-content: space-between; align-items: center; gap: 4px; padding-left: 6px;">
-                        <span class="popup-dep-headsign" style="font-weight: bold; color: #38bdf8;" title="${destHeadsign}">${destHeadsign}</span>
-                        <div class="popup-itinerary-badges">
-                            ${durationBadgeHtml}
-                            <span class="popup-itinerary-badge">${totalStopsCount} stops</span>
-                        </div>
+                        <span class="popup-dep-headsign" style="font-weight: bold; color: #38bdf8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${destHeadsign}">${destHeadsign}</span>
+                        ${tripCyclerNavBtns}
                     </div>
                 </div>
                 <div id="popup-content-view-${currentStopId}" class="popup-scroll-container">
